@@ -244,7 +244,7 @@ export default function Play() {
 
           {pointsFlash && (
             <p
-              key={pointsFlash.id}
+              key={`points-${pointsFlash.id}`}
               className="absolute bottom-56 left-1/2 -translate-x-1/2 animate-bounce text-4xl font-extrabold text-emerald-400 drop-shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
             >
               +{pointsFlash.points}
@@ -253,7 +253,7 @@ export default function Play() {
 
           {formFlashId !== null && (
             <p
-              key={formFlashId}
+              key={`form-${formFlashId}`}
               className="absolute left-1/2 top-32 -translate-x-1/2 text-xl font-bold tracking-wide text-emerald-400 drop-shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
             >
               Nice form!
