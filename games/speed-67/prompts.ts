@@ -1,0 +1,23 @@
+/** Categories for Speed 67. The room shouts 6 answers in 7 seconds. */
+export const PROMPTS: string[] = [
+  "Pizza toppings",
+  "Things you'd find in a junk drawer",
+  "Excuses for being late",
+  "Animals that would be terrible pets",
+  "Songs everyone knows the chorus to",
+  "Things you shouldn't say at a wedding",
+  "Uses for a brick besides building",
+  "Movies with a number in the title",
+  "Things that are better slightly cold",
+  "Jobs that existed 100 years ago but not today",
+  "Things you pretend to understand",
+  "Foods that are socially risky on a first date",
+  "Superpowers that sound good but aren't",
+  "Things in your pockets right now",
+  "Words that sound rude but aren't",
+  "Apps everyone has but nobody uses",
+  "Things you'd grab in a fire (after people and pets)",
+  "Sports that should be in the Olympics",
+  "Smells that instantly transport you somewhere",
+  "Things you should never Google",
+];
