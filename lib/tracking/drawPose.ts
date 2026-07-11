@@ -19,9 +19,10 @@ export function drawMirroredVideoFrame(
 }
 
 /**
- * Draw a pose skeleton overlay. Call after drawMirroredVideoFrame with the
- * same mirrored transform active (wrap both in one ctx.save()/restore() if
- * drawing them together), or landmarks and the flipped video will diverge.
+ * Draw a pose skeleton overlay, mirrored the same way drawMirroredVideoFrame
+ * mirrors the video, so the two stay aligned regardless of call order. Each
+ * draw call manages its own transform (save/restore internally) rather than
+ * relying on the caller to share one across both calls.
  */
 export function drawSkeleton(
   ctx: CanvasRenderingContext2D,
@@ -29,6 +30,10 @@ export function drawSkeleton(
   landmarks: Landmark[],
   color = "rgba(80, 220, 255, 0.85)"
 ) {
+  ctx.save();
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+
   ctx.lineWidth = Math.max(2, canvas.width / 320);
   ctx.strokeStyle = color;
   for (const c of PoseLandmarker.POSE_CONNECTIONS) {
@@ -47,4 +52,6 @@ export function drawSkeleton(
     ctx.arc(p.x * canvas.width, p.y * canvas.height, r, 0, Math.PI * 2);
     ctx.fill();
   }
+
+  ctx.restore();
 }

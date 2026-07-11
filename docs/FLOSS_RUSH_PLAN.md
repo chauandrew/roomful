@@ -1,6 +1,6 @@
 # Plan: Add Floss Rush as a native single-device game
 
-**Status:** Stage 2 complete (2026-07-11). This doc is the source of truth for resuming this work across
+**Status:** Stage 3 complete (2026-07-11). This doc is the source of truth for resuming this work across
 sessions — read it fresh at the start of a new session instead of relying on chat history.
 Check boxes off as stages complete and commit this file alongside each stage's code so
 progress survives between sessions.
@@ -122,25 +122,27 @@ in an effect body (to avoid a cascading extra render) — in `CameraCheck.tsx`, 
 the Ready button on `isVisible && stable` together so the deferred reset can never leave a
 one-tick window where a stale `stable=true` enables Ready.
 
-## Stage 3 — Build `games/floss-rush/` and wire it into the registries
+## Stage 3 — Build `games/floss-rush/` and wire it into the registries ✅ DONE
 
-- [ ] **`games/floss-rush/meta.ts`** — `GameMeta` with `mode: "single-device"`,
+- [x] **`games/floss-rush/meta.ts`** — `GameMeta` with `mode: "single-device"`,
       `accent: "#50dcff"` (floss-rush's own `--accent`), `minPlayers: 1, maxPlayers: 1`
       (one person is tracked at a time; note this doesn't actually affect the homepage
       card — `GameGrid.tsx` shows "Any crowd size" for all single-device games regardless
       of these numbers, so this is semantically accurate metadata, not a card-visible
       decision).
-- [ ] **`games/floss-rush/config.ts`** — floss's own tunables, ported from `config.js`
-      (detection thresholds + `GAME_DURATION_MS`/`COUNTDOWN_FROM`/`READY_STABILITY_MS`).
-- [ ] **`games/floss-rush/detector.ts`** — `FlossDetector` class, ported ~1:1 from
+- [x] **`games/floss-rush/config.ts`** — floss's own tunables, ported from `config.js`
+      (detection thresholds + `GAME_DURATION_MS`/`COUNTDOWN_FROM`/`READY_STABILITY_MS`, plus
+      `COUNTDOWN_TICK_MS`/`COUNTDOWN_GO_MS` split out to feed `useCountdown`'s generic args).
+- [x] **`games/floss-rush/detector.ts`** — `FlossDetector` class, ported ~1:1 from
       `detector.js`, typed, built on `lib/tracking/signals.ts`'s `MovingAverage`/
       `isVisible`.
-- [ ] **`games/floss-rush/leaderboard.ts`** — localStorage-backed `submitScore`/
-      `getTopScores`, ported ~1:1 from `leaderboard.js`. Stays game-scoped, not promoted to
-      `lib/` — no other Roomful game has a "personal best" concept, and Roomful's rooms are
-      otherwise ephemeral by design; this is an intentional per-game exception, same as in
-      the original repo.
-- [ ] **`games/floss-rush/Play.tsx`** — the state machine
+- [x] **`games/floss-rush/leaderboard.ts`** — localStorage-backed `submitScore`/
+      `getTopScores` (+ `getBest`/`setBest`), ported ~1:1 from `leaderboard.js`. Stays
+      game-scoped, not promoted to `lib/` — no other Roomful game has a leaderboard concept,
+      and Roomful's rooms are otherwise ephemeral by design; this is an intentional
+      per-game exception, same as in the original repo. Kept as a full name+top-10 local
+      leaderboard per explicit user direction (considered dropping it, decided against).
+- [x] **`games/floss-rush/Play.tsx`** — the state machine
       (`IDLE → CAMERA_CHECK → COUNTDOWN → PLAYING → RESULTS`, ported from `app.js`'s
       `state`), HUD (timer/score/points-flash/form-indicator, styled via Tailwind matching
       floss-rush's CSS), results screen + leaderboard list. Built on `usePoseTracking` +
@@ -148,14 +150,42 @@ one-tick window where a stale `stable=true` enables Ready.
       affordance (floss-rush's own ✕ button covers mid-run exit; Roomful's `ControlBar`
       gives a consistent Exit on the idle/start screen too, which floss-rush's standalone
       version didn't need since it had nowhere else to go).
-- [ ] **`games/registry.ts`** — import `flossRushMeta`, add to the `games` array.
-- [ ] **`games/clientRegistry.tsx`** — add
+- [x] **`games/registry.ts`** — import `flossRushMeta`, add to the `games` array.
+- [x] **`games/clientRegistry.tsx`** — add
       `"floss-rush": { Play: dynamic(() => import("./floss-rush/Play"), { ssr: false }) }`.
       **`ssr: false` is required here specifically** (Gibberish doesn't need it) —
       `usePoseTracking` touches `navigator.mediaDevices`/camera APIs that don't exist during
       server-side rendering.
-- [ ] Nothing else changes — `app/play/[gameId]/page.tsx` and the homepage `GameGrid` are
+- [x] Nothing else changes — `app/play/[gameId]/page.tsx` and the homepage `GameGrid` are
       already fully generic off these two registries.
+
+Two things that came up while wiring the first real consumer of `lib/tracking/`:
+- **Bug caught and fixed in `lib/tracking/drawPose.ts`:** `drawSkeleton` didn't apply the
+  same mirror transform as `drawMirroredVideoFrame`, so the skeleton overlay would have
+  drawn unmirrored while the video underneath was flipped — they'd diverge. Fixed by giving
+  `drawSkeleton` its own internal save/translate/scale/restore (matching
+  `drawMirroredVideoFrame`'s), so each draw call is self-contained and correct regardless of
+  call order, instead of relying on the caller to share one transform across both calls.
+- **More `react-hooks` purity-rule fixes** (same family as Stage 2's): `react-hooks/purity`
+  flags any direct call to `performance.now()`/`Date.now()`/`Math.random()` inside a plain
+  function declared during render, even if that function is only invoked later via a
+  callback (it doesn't matter that `handleResult` and `beginPlay` are actually called async
+  from the rAF loop / a timeout, not during render itself — the lint is static). Fixed by
+  wrapping both in `useCallback`. This reintroduced the videoRef/canvasRef circularity
+  `usePoseTracking`'s `onResult` option has by design (the hook needs a callback at call
+  time, but the callback needs refs the hook returns) — resolved with a small
+  ref-forwarding indirection local to `Play.tsx` (`handleResultRef`, synced via effect),
+  rather than changing `usePoseTracking`'s already-shipped Stage 2 API for one caller.
+- Browser-verified (no real webcam in this environment, so this covers everything Stage 4's
+  non-camera checklist calls for): homepage card renders under "Big screen only," navigating
+  to `/play/floss-rush` doesn't crash, idle screen shows the friendly
+  `NotAllowedError` → "Camera permission was denied" message with a disabled "Unavailable"
+  button (proving the error-classification path works, not just the happy path) — and
+  notably the MediaPipe WASM/model pipeline actually initialized successfully in this
+  sandboxed browser (GL context + "Graph successfully started running" in the console) even
+  though the camera stream itself was blocked, which is a stronger signal than Stage 1's
+  import-only smoke test. Exit navigated cleanly back to the homepage with zero console
+  errors — no dangling rAF/stream complaints after unmount.
 
 ## Stage 4 — Verification and docs
 
