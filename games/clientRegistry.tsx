@@ -31,4 +31,9 @@ export const gameComponents: Record<string, GameComponents> = {
     HostView: dynamic(() => import("./sketch-chain/HostView")),
     PlayerView: dynamic(() => import("./sketch-chain/PlayerView")),
   },
+  "floss-rush": {
+    // ssr:false required — usePoseTracking touches navigator.mediaDevices,
+    // which doesn't exist during server-side rendering.
+    Play: dynamic(() => import("./floss-rush/Play"), { ssr: false }),
+  },
 };
