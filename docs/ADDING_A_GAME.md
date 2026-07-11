@@ -15,7 +15,7 @@ Pick your mode first:
 
 ## 1. Single-device game
 
-**Files** (see `games/speed-67/` for the reference):
+**Files** (see `games/gibberish/` for the reference):
 
 ```
 games/my-game/

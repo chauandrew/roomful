@@ -7,7 +7,7 @@ leads the room through a growing library of party/icebreaker games. Games come
 in two flavors:
 
 - **Single-device** — everything happens on the projected screen; the host
-  drives with keyboard/clicks and the crowd shouts along (e.g. **Speed 67**).
+  drives with keyboard/clicks and the crowd shouts along (e.g. **Gibberish**).
 - **Multi-user** — players join on their phones by scanning a QR code or
   typing a 4-letter room code. No accounts, no app — just a name. The laptop
   shows the shared view (e.g. **Majority Rules**, **Sketch Chain**).

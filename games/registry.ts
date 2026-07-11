@@ -14,12 +14,12 @@
  */
 import type { GameMeta } from "@/lib/types";
 
-import { speed67Meta } from "./speed-67/meta";
+import { gibberishMeta } from "./gibberish/meta";
 import { majorityRulesMeta } from "./majority-rules/meta";
 import { sketchChainMeta } from "./sketch-chain/meta";
 
 export const games: GameMeta[] = [
-  speed67Meta,
+  gibberishMeta,
   majorityRulesMeta,
   sketchChainMeta,
 ];
