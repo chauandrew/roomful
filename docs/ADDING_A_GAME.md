@@ -139,7 +139,35 @@ expects. Ready-made components in `components/inputs/`:
 
 ---
 
-## 4. Checklist before you PR
+## 4. Camera/pose-tracking games
+
+Single-device games that use the host's webcam (see `games/floss-rush/` for
+the reference) build on a shared layer in `lib/tracking/` instead of talking
+to `@mediapipe/tasks-vision` directly:
+
+| Piece | What it does |
+| --- | --- |
+| `usePoseTracking()` | Owns `getUserMedia` + the MediaPipe pose model + an rAF detection loop. Returns `videoRef`/`canvasRef` to attach to your elements, `status` (`"loading" \| "ready" \| "error"`), and delivers landmarks via an `onResult` callback — not React state, to avoid re-rendering at 60fps. Cleans up the camera stream and model on unmount. |
+| `signals.ts` | `MovingAverage` and `isVisible(landmarks, requiredIndices, threshold)` — generic building blocks for turning raw landmarks into a detection signal. |
+| `drawPose.ts` | `drawMirroredVideoFrame` + `drawSkeleton`, each self-contained (own mirror transform), so they can be called independently or together. |
+| `useCountdown()` | Generic, cancelable N→0→"GO" countdown; your game passes its own timing. |
+| `CameraCheck` | Shared "step back, hold still, Ready" gating screen, parametrized by `isVisible`/`stabilityMs`. |
+| `types.ts` | Thin `Landmark`/`PoseResult` aliases over mediapipe's own types. |
+
+Your game's own detection algorithm (what counts as a "swing," a "squat," a
+"jump," etc.) stays in `games/<your-game>/detector.ts` — it's not part of the
+shared layer, since different games need different signal shapes. Only
+promote something from a game's detector into `lib/tracking/signals.ts` once
+a second game actually needs the same primitive.
+
+One thing to get right: `games/clientRegistry.tsx` must register your `Play`
+with `dynamic(() => import("./your-game/Play"), { ssr: false })` —
+`usePoseTracking` touches `navigator.mediaDevices`, which doesn't exist
+during server-side rendering.
+
+---
+
+## 5. Checklist before you PR
 
 - [ ] `npm run typecheck` and `npm run lint` pass
 - [ ] Playtested locally with `npm run dev` + two extra browser tabs as players

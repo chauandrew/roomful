@@ -1,6 +1,6 @@
 # Plan: Add Floss Rush as a native single-device game
 
-**Status:** Stage 3 complete (2026-07-11). This doc is the source of truth for resuming this work across
+**Status:** Complete (2026-07-11). This doc is the source of truth for resuming this work across
 sessions — read it fresh at the start of a new session instead of relying on chat history.
 Check boxes off as stages complete and commit this file alongside each stage's code so
 progress survives between sessions.
@@ -187,31 +187,26 @@ Two things that came up while wiring the first real consumer of `lib/tracking/`:
   import-only smoke test. Exit navigated cleanly back to the homepage with zero console
   errors — no dangling rAF/stream complaints after unmount.
 
-## Stage 4 — Verification and docs
+## Stage 4 — Verification and docs ✅ DONE
 
-- [ ] `npx tsc --noEmit` and `npm run lint` pass across the whole change.
-- [ ] Non-camera-dependent browser checks: homepage card renders under "Big screen only,"
+- [x] `npx tsc --noEmit` and `npm run lint` pass across the whole change.
+- [x] Non-camera-dependent browser checks: homepage card renders under "Big screen only,"
       `/play/floss-rush` route loads without crashing, idle screen renders with a
       disabled/loading Start button before the camera+model promise resolves, and — the
       important one — navigating away (Exit) doesn't leave console errors from a dangling
       rAF loop or stream.
-- [ ] **Manual camera verification** (cannot be automated — no real webcam / permission
-      prompt in the dev browser tooling used for this project). Test in a real browser,
-      mirroring floss-rush's own README "What to test" checklist:
-  - Permission denied / no camera → friendly message on the start screen.
-  - Camera-check Ready button gates on ~1s continuous tracking and re-disables the moment
-    tracking drops.
-  - Exit cleanly aborts from camera-check / countdown / mid-game — no leftover HUD, no
-    score/best saved.
-  - "Play again" re-routes through camera-check (player may have moved).
-  - A slow, exaggerated *wide* floss scores more per swing than fast tiny ones.
-  - Plain arm-waving (no hip counter-motion) does **not** score.
-  - Final score persists as personal best; submitting adds to the leaderboard and
-    highlights the just-submitted entry.
-- [ ] Add a short new section to `docs/ADDING_A_GAME.md` ("Camera/pose-tracking games")
-      describing `lib/tracking/`'s hooks/components and pointing at `games/floss-rush/` as
-      the reference — mirrors how the doc already explains simultaneous-vs-sequential for
-      multi-user games. No existing section covers this today.
+- [x] **Manual camera verification**, run by the user on a real browser/webcam (this
+      environment has no webcam). Caught one real bug along the way: a duplicate-React-key
+      console error on good-form swings — `pointsFlash` and `formFlashId` were both stamped
+      with the same shared counter value, so a good-form swing produced two sibling `<p>`
+      elements with `key={2}`. Fixed by namespacing the keys (`points-N` / `form-N`); see
+      commit `172fa8f`. User confirmed clean after the fix — "it's good to go now!"
+- [x] Added a "Camera/pose-tracking games" section to `docs/ADDING_A_GAME.md` describing
+      `lib/tracking/`'s hooks/components and pointing at `games/floss-rush/` as the
+      reference.
+
+**Floss Rush integration is complete.** All four stages done, committed, and manually
+verified end-to-end including live camera gameplay.
 
 ## Reference files (existing Roomful conventions to match)
 
