@@ -24,22 +24,36 @@ export default function Play() {
   const [index, setIndex] = useState(0);
 
   const advance = useCallback(() => {
-    setStage((cur) => {
-      if (cur === "title") return "puzzle";
-      if (cur === "puzzle") return "reveal";
-      if (cur === "reveal") {
-        if (index + 1 >= PUZZLES.length) return "done";
-        setIndex((i) => i + 1);
-        return "puzzle";
+    // Compute the next stage/index from current values and set them as
+    // independent top-level calls (never setIndex nested inside setStage's
+    // updater) — React Strict Mode double-invokes updater functions to
+    // catch impure side effects, and a nested setIndex call would fire
+    // twice per click, skipping a puzzle every time.
+    if (stage === "title") {
+      setStage("puzzle");
+    } else if (stage === "puzzle") {
+      setStage("reveal");
+    } else if (stage === "reveal") {
+      if (index + 1 >= PUZZLES.length) {
+        setStage("done");
+      } else {
+        setIndex(index + 1);
+        setStage("puzzle");
       }
-      return cur;
-    });
-  }, [index]);
+    }
+  }, [stage, index]);
 
-  const goto = useCallback((i: number) => {
-    setIndex(Math.max(0, Math.min(PUZZLES.length - 1, i)));
-    setStage("puzzle");
-  }, []);
+  const goto = useCallback(
+    (i: number) => {
+      // Once finished, arrow keys/buttons must stay inert — otherwise a
+      // stray keypress after the last puzzle drops the host back into
+      // gameplay instead of staying on the end screen.
+      if (stage === "done") return;
+      setIndex(Math.max(0, Math.min(PUZZLES.length - 1, i)));
+      setStage("puzzle");
+    },
+    [stage]
+  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -106,11 +120,15 @@ export default function Play() {
 
       <ControlBar>
         <BarButton onClick={() => router.push("/")}>Exit</BarButton>
-        <BarButton onClick={() => goto(index - 1)}>← Prev</BarButton>
-        <BarButton onClick={() => goto(index + 1)}>Next →</BarButton>
-        <BarButton primary onClick={advance}>
-          {stage === "puzzle" ? "Reveal (Space)" : "Advance (Space)"}
-        </BarButton>
+        {stage !== "done" && (
+          <>
+            <BarButton onClick={() => goto(index - 1)}>← Prev</BarButton>
+            <BarButton onClick={() => goto(index + 1)}>Next →</BarButton>
+            <BarButton primary onClick={advance}>
+              {stage === "puzzle" ? "Reveal (Space)" : "Advance (Space)"}
+            </BarButton>
+          </>
+        )}
       </ControlBar>
     </PresenterLayout>
   );
