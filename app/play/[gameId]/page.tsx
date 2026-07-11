@@ -17,7 +17,7 @@ export default function PlayPage() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4">
         <p className="text-2xl font-bold">No single-device game called “{gameId}”.</p>
-        <Link href="/" className="text-amber-400 underline">
+        <Link href="/" className="text-amber-600 underline">
           Back to all games
         </Link>
       </main>

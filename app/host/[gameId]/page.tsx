@@ -45,7 +45,7 @@ function HostPageInner() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4">
         <p className="text-2xl font-bold">No multi-user game called “{gameId}”.</p>
-        <Link href="/" className="text-amber-400 underline">
+        <Link href="/" className="text-amber-600 underline">
           Back to all games
         </Link>
       </main>
@@ -85,7 +85,7 @@ function HostRoom({ meta, code }: { meta: GameMeta; code: string }) {
           </button>
         </div>
       ) : error ? (
-        <p className="text-2xl text-red-400">{error.message}</p>
+        <p className="text-2xl text-red-600">{error.message}</p>
       ) : !view ? (
         <p className="animate-pulse text-2xl text-zinc-500">
           {connected ? "Setting up the room…" : "Connecting…"}

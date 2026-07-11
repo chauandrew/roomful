@@ -27,7 +27,7 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
           {g.leaderboard.slice(0, 8).map((row, i) => (
             <li
               key={row.name + i}
-              className="flex items-baseline justify-between rounded-xl bg-zinc-900 px-6 py-4"
+              className="flex items-baseline justify-between rounded-xl bg-zinc-100 px-6 py-4"
             >
               <span className="text-3xl font-bold">
                 <span className="mr-4 text-zinc-500">{i + 1}</span>
@@ -62,11 +62,11 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
         {g.options.map((opt) => {
           const highlight = g.phase === "revealed" && g.majority.includes(opt.id);
           return (
-            <div key={opt.id} className="relative overflow-hidden rounded-xl bg-zinc-900">
+            <div key={opt.id} className="relative overflow-hidden rounded-xl bg-zinc-100">
               <div
                 className={
                   "absolute inset-y-0 left-0 transition-all duration-500 " +
-                  (highlight ? "bg-[var(--accent)]" : "bg-zinc-700")
+                  (highlight ? "bg-[var(--accent)]" : "bg-zinc-300")
                 }
                 style={{ width: `${(opt.count / maxCount) * 100}%` }}
               />
@@ -77,7 +77,7 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
                 <span
                   className={
                     "font-mono text-2xl font-black " +
-                    (highlight ? "text-zinc-950" : "text-zinc-400")
+                    (highlight ? "text-zinc-950" : "text-zinc-600")
                   }
                 >
                   {opt.count}

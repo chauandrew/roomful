@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
+  --background: #faf6ec;
+  --foreground: #1f2430;
   /* Per-game accent; PresenterLayout and player shells override this. */
-  --accent: #fbbf24;
+  --accent: #e0a92e;
 }
 
 @theme inline {

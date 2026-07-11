@@ -9,5 +9,5 @@ export const gibberishMeta: GameMeta = {
   minPlayers: 1,
   maxPlayers: 500,
   durationMinutes: 10,
-  accent: "#fbbf24",
+  accent: "#e0a92e",
 };

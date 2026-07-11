@@ -68,7 +68,7 @@ export function DrawingCanvas({
         ref={canvasRef}
         width={W}
         height={H}
-        className="w-full touch-none rounded-xl border-2 border-zinc-700 bg-white"
+        className="w-full touch-none rounded-xl border-2 border-zinc-300 bg-white"
         onPointerDown={(e) => {
           if (disabled) return;
           e.currentTarget.setPointerCapture(e.pointerId);
@@ -98,7 +98,7 @@ export function DrawingCanvas({
               onClick={() => setColor(c)}
               className={
                 "h-9 w-9 rounded-full border-2 " +
-                (c === color ? "border-[var(--accent)] scale-110" : "border-zinc-600")
+                (c === color ? "border-[var(--accent)] scale-110" : "border-zinc-300")
               }
               style={{ backgroundColor: c }}
             />
@@ -107,13 +107,13 @@ export function DrawingCanvas({
         <div className="flex gap-2">
           <button
             onClick={() => setStrokes((cur) => cur.slice(0, -1))}
-            className="rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-300"
+            className="rounded-lg bg-zinc-200 px-3 py-2 text-sm text-zinc-700"
           >
             Undo
           </button>
           <button
             onClick={() => setStrokes([])}
-            className="rounded-lg bg-zinc-800 px-3 py-2 text-sm text-zinc-300"
+            className="rounded-lg bg-zinc-200 px-3 py-2 text-sm text-zinc-700"
           >
             Clear
           </button>

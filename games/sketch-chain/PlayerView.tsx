@@ -36,7 +36,7 @@ export default function PlayerView({ view, sendInput }: PlayerViewProps) {
       <div className="text-center">
         <p className="text-5xl">✅</p>
         <p className="mt-4 text-2xl font-bold">Handed in!</p>
-        <p className="mt-2 text-zinc-400">
+        <p className="mt-2 text-zinc-600">
           Waiting on {g.waitingOn} more player{g.waitingOn === 1 ? "" : "s"}…
         </p>
       </div>
@@ -52,7 +52,7 @@ export default function PlayerView({ view, sendInput }: PlayerViewProps) {
       {g.task === "write" && (
         <>
           <h2 className="mb-4 text-2xl font-bold">Write a weird phrase</h2>
-          <p className="mb-4 text-zinc-400">
+          <p className="mb-4 text-zinc-600">
             Someone else will have to draw this. Make it count.
           </p>
           <TextInput
@@ -65,7 +65,7 @@ export default function PlayerView({ view, sendInput }: PlayerViewProps) {
       {g.task === "draw" && g.prompt && (
         <>
           <h2 className="mb-2 text-2xl font-bold">Draw this:</h2>
-          <p className="mb-4 rounded-xl bg-zinc-800 px-4 py-3 text-xl font-semibold text-[var(--accent)]">
+          <p className="mb-4 rounded-xl bg-zinc-100 px-4 py-3 text-xl font-semibold text-[var(--accent)]">
             “{g.prompt.value}”
           </p>
           <DrawingCanvas onSubmit={(value) => sendInput({ value })} />

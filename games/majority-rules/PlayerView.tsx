@@ -19,11 +19,11 @@ export default function PlayerView({ view, sendInput }: PlayerViewProps) {
   if (g.phase === "final") {
     return (
       <div className="text-center">
-        <p className="text-lg text-zinc-400">Final score</p>
+        <p className="text-lg text-zinc-600">Final score</p>
         <p className="my-4 text-7xl font-black text-[var(--accent)]">{g.yourScore}</p>
         <ol className="mt-6 space-y-1 text-left">
           {g.leaderboard?.slice(0, 5).map((row, i) => (
-            <li key={row.name + i} className="flex justify-between text-zinc-300">
+            <li key={row.name + i} className="flex justify-between text-zinc-700">
               <span>
                 {i + 1}. {row.name}
               </span>
@@ -42,8 +42,8 @@ export default function PlayerView({ view, sendInput }: PlayerViewProps) {
         <p className="mt-4 text-2xl font-bold">
           {g.inMajority ? "You sided with the majority! +1" : "Against the grain…"}
         </p>
-        <p className="mt-2 text-zinc-400">
-          Score: <span className="font-bold text-white">{g.yourScore}</span>
+        <p className="mt-2 text-zinc-600">
+          Score: <span className="font-bold text-zinc-900">{g.yourScore}</span>
         </p>
       </div>
     );
@@ -57,7 +57,7 @@ export default function PlayerView({ view, sendInput }: PlayerViewProps) {
         onSubmit={([optionId]) => sendInput({ optionId })}
       />
       {g.yourAnswer && (
-        <p className="mt-4 text-center text-sm text-zinc-400">
+        <p className="mt-4 text-center text-sm text-zinc-500">
           Answered! Tap another option to change your mind before the reveal.
         </p>
       )}

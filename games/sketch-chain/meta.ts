@@ -9,5 +9,5 @@ export const sketchChainMeta: GameMeta = {
   minPlayers: 2,
   maxPlayers: 10,
   durationMinutes: 20,
-  accent: "#a78bfa",
+  accent: "#7a5cbf",
 };

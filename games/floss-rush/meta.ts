@@ -9,5 +9,5 @@ export const flossRushMeta: GameMeta = {
   minPlayers: 1,
   maxPlayers: 1,
   durationMinutes: 3,
-  accent: "#50dcff",
+  accent: "#2f8fc4",
 };

@@ -48,7 +48,7 @@ export function ChoiceInput({
               "min-h-14 rounded-xl border-2 px-4 py-3 text-left text-lg font-semibold transition-colors disabled:opacity-50 " +
               (isSelected
                 ? "border-[var(--accent)] bg-[var(--accent)] text-zinc-950"
-                : "border-zinc-700 bg-zinc-800 text-white active:border-[var(--accent)]")
+                : "border-zinc-300 bg-white text-zinc-900 active:border-[var(--accent)]")
             }
           >
             {opt.label}
