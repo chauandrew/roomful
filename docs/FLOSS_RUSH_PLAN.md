@@ -1,6 +1,6 @@
 # Plan: Add Floss Rush as a native single-device game
 
-**Status:** Stage 1 complete (2026-07-11). This doc is the source of truth for resuming this work across
+**Status:** Stage 2 complete (2026-07-11). This doc is the source of truth for resuming this work across
 sessions — read it fresh at the start of a new session instead of relying on chat history.
 Check boxes off as stages complete and commit this file alongside each stage's code so
 progress survives between sessions.
@@ -73,47 +73,54 @@ Note: the large WASM/model binaries stay CDN-fetched at *runtime* via
 itself is imported — bundle size and hosting cost are unaffected. Same "internet needed on
 first load" behavior floss-rush's own README already documents.
 
-## Stage 2 — Build the shared `lib/tracking/` layer (6 files, no game depends on it yet)
+## Stage 2 — Build the shared `lib/tracking/` layer (6 files, no game depends on it yet) ✅ DONE
 
 New shared layer, closest in spirit to `components/inputs/` (dumb/reusable pieces used by
 *some* games, not a platform-wide concern like the multi-user room system).
 
-- [ ] **`lib/tracking/usePoseTracking.ts`** — the core hook. Combines what floss-rush's
+- [x] **`lib/tracking/usePoseTracking.ts`** — the core hook. Combines what floss-rush's
       `startCamera()` + `loadModel()` + `loop()` do together: `getUserMedia` (ideal
       1280x720@60fps, classified errors — `NotAllowedError`/`NotFoundError`/generic, same
       as floss-rush), `FilesetResolver` + `PoseLandmarker.createFromOptions` model load, and
       an rAF loop that calls `detectForVideo` only on new video frames (dedupe via
       `video.currentTime`, exactly as floss-rush does). Exposes `videoRef`, `canvasRef`,
-      latest landmarks via a **ref/callback, not React state** (avoid 60fps re-renders —
-      non-negotiable perf detail), and a `status: "loading" | "ready" | "error"` union with
-      an error message.
-  - [ ] **Must clean up on unmount**: cancel the rAF loop, stop every `MediaStreamTrack`
-        (`stream.getTracks().forEach(t => t.stop())`), and call `landmarker.close()` to
-        release WASM/GPU memory. Floss-rush never needed this (its page is never
-        unmounted); Roomful's `Play.tsx` *will* unmount when the host clicks Exit back to
-        the homepage. Missing this leaves the camera LED on and the device locked after
-        exit — this is a correctness requirement, not a nice-to-have.
-- [ ] **`lib/tracking/signals.ts`** — `MovingAverage` class (ported verbatim, already
+      latest landmarks via an **`onResult` callback ref, not React state** (avoid 60fps
+      re-renders — non-negotiable perf detail), and a `status: "loading" | "ready" | "error"`
+      union with an error message.
+  - [x] **Cleans up on unmount**: cancels the rAF loop, stops every `MediaStreamTrack`
+        (`stream.getTracks().forEach(t => t.stop())`), and calls `landmarker.close()` to
+        release WASM/GPU memory.
+- [x] **`lib/tracking/signals.ts`** — `MovingAverage` class (ported verbatim, already
       generic) and `isVisible(landmarks, requiredIndices, threshold)` — a generalization of
       floss-rush's hardcoded 6-landmark-index visibility check, parametrized so a future
       game (different key joints) can reuse it.
-- [ ] **`lib/tracking/drawPose.ts`** — plain functions, not hidden inside the hook since
-      skeleton visibility/color varies per game: mirrored video-to-canvas draw, skeleton
-      overlay draw (ported from `drawFrame`/`drawSkeleton`).
-- [ ] **`lib/tracking/useCountdown.ts`** — generic, cancelable N→0→"GO" countdown hook
-      (ported from `startCountdown`'s setTimeout chain). Takes duration/tick-ms as
+- [x] **`lib/tracking/drawPose.ts`** — plain functions, not hidden inside the hook since
+      skeleton visibility/color varies per game: `drawMirroredVideoFrame` + `drawSkeleton`
+      (ported from `drawFrame`/`drawSkeleton`).
+- [x] **`lib/tracking/useCountdown.ts`** — generic, cancelable N→0→"GO" countdown hook
+      (ported from `startCountdown`'s setTimeout chain). Takes `from`/`tickMs`/`goMs` as
       arguments — floss-rush's specific `900ms`/`600ms`/`COUNTDOWN_FROM: 3` values stay in
       `games/floss-rush/config.ts`, passed in, not hardcoded as defaults here.
-- [ ] **`lib/tracking/CameraCheck.tsx`** — shared "step back, hold still, Ready" gating
-      screen (status pill + panel + Back/Ready buttons, styled to Roomful's dark/accent
+- [x] **`lib/tracking/CameraCheck.tsx`** — shared "step back, hold still, Ready" gating
+      screen (status text + Back/Ready buttons, styled to Roomful's dark/accent
       conventions). Owns the stability-timer logic internally (ported from
       `updateCameraCheck`), parametrized by `isVisible: boolean` and `stabilityMs: number`
       (floss-rush passes its own `READY_STABILITY_MS: 1000`, not a shared default).
-- [ ] **`lib/tracking/types.ts`** — thin `Landmark`/`PoseResult` aliases over
-      `@mediapipe/tasks-vision`'s own types, so game code doesn't import mediapipe types
-      directly everywhere.
-- [ ] Verify: `npx tsc --noEmit` and `npm run lint` pass. No visible UI yet at this stage
-      (nothing imports the new layer), so no browser check possible until Stage 3.
+- [x] **`lib/tracking/types.ts`** — thin `Landmark`/`PoseResult` aliases over
+      `@mediapipe/tasks-vision`'s own `NormalizedLandmark`/`PoseLandmarkerResult`, so game
+      code doesn't import mediapipe types directly everywhere.
+- [x] Verify: `npx tsc --noEmit` and `npm run lint` pass. No visible UI yet at this stage
+      (nothing imports the new layer), confirmed by a clean `npm run build` showing the same
+      route list as before — no browser check possible until Stage 3.
+
+Two lint fixes needed along the way (this repo's `eslint-config-next` includes the newer
+`react-hooks` rules): (1) `react-hooks/refs` disallows writing a ref's `.current` directly
+during render (the common "latest callback ref" pattern) — moved those assignments into a
+`useEffect`. (2) `react-hooks/set-state-in-effect` disallows calling `setState` synchronously
+in an effect body (to avoid a cascading extra render) — in `CameraCheck.tsx`, wrapped the
+`setStable` calls in `setTimeout(..., 0)`/the real stability delay, and additionally gated
+the Ready button on `isVisible && stable` together so the deferred reset can never leave a
+one-tick window where a stale `stable=true` enables Ready.
 
 ## Stage 3 — Build `games/floss-rush/` and wire it into the registries
 
