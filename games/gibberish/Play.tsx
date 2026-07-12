@@ -85,7 +85,7 @@ export default function Play() {
           <h1 className="text-8xl font-black tracking-tight text-[var(--accent)]">
             Gibberish
           </h1>
-          <p className="mt-6 text-3xl text-zinc-300">
+          <p className="mt-6 text-3xl text-zinc-700">
             Say it out loud until you hear the real phrase.
           </p>
           <p className="mt-12 animate-pulse text-xl text-zinc-500">
@@ -114,7 +114,7 @@ export default function Play() {
       {stage === "done" && (
         <div className="text-center">
           <p className="text-7xl font-black text-[var(--accent)]">That&apos;s all!</p>
-          <p className="mt-6 text-2xl text-zinc-400">Thanks for playing Gibberish.</p>
+          <p className="mt-6 text-2xl text-zinc-600">Thanks for playing Gibberish.</p>
         </div>
       )}
 

@@ -33,7 +33,7 @@ export function TextInput({
         maxLength={maxLength}
         rows={3}
         disabled={disabled}
-        className="w-full rounded-xl border-2 border-zinc-700 bg-zinc-800 p-4 text-lg text-white placeholder-zinc-500 focus:border-[var(--accent)] focus:outline-none disabled:opacity-50"
+        className="w-full rounded-xl border-2 border-zinc-300 bg-white p-4 text-lg text-zinc-900 placeholder-zinc-400 focus:border-[var(--accent)] focus:outline-none disabled:opacity-50"
       />
       <button
         type="submit"

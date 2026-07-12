@@ -42,7 +42,7 @@ export function CameraCheck({ isVisible, stabilityMs, onReady, onBack }: CameraC
     <div className="flex flex-col items-center gap-8 text-center">
       <p
         className={
-          "text-3xl font-bold " + (isVisible ? "text-[var(--accent)]" : "text-zinc-400")
+          "text-3xl font-bold " + (isVisible ? "text-[var(--accent)]" : "text-zinc-500")
         }
       >
         {!isVisible
@@ -54,7 +54,7 @@ export function CameraCheck({ isVisible, stabilityMs, onReady, onBack }: CameraC
       <div className="flex gap-4">
         <button
           onClick={onBack}
-          className="rounded-md bg-zinc-800 px-6 py-3 text-lg font-medium text-zinc-300 hover:bg-zinc-700"
+          className="rounded-md bg-zinc-200 px-6 py-3 text-lg font-medium text-zinc-700 hover:bg-zinc-300"
         >
           Back
         </button>

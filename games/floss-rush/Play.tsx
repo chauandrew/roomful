@@ -188,15 +188,15 @@ export default function Play() {
       <canvas ref={canvasRef} className="fixed inset-0 -z-10 h-full w-full bg-black object-cover" />
 
       {stage === "IDLE" && (
-        <div className="flex flex-col items-center gap-6 rounded-2xl bg-zinc-950/80 p-10 text-center backdrop-blur-sm">
+        <div className="flex flex-col items-center gap-6 rounded-2xl bg-[var(--background)]/95 p-10 text-center shadow-lg backdrop-blur-sm">
           <h1 className="text-7xl font-black tracking-tight">
             Floss <span className="text-[var(--accent)]">Rush</span>
           </h1>
-          <p className="max-w-md text-xl text-zinc-300">
+          <p className="max-w-md text-xl text-zinc-700">
             Step up to the camera and floss as fast and wide as you can. 15 seconds on the clock.
           </p>
           <p className="text-sm text-zinc-500">Your best: {best}</p>
-          {status === "error" && <p className="max-w-md font-semibold text-pink-400">{errorMessage}</p>}
+          {status === "error" && <p className="max-w-md font-semibold text-pink-600">{errorMessage}</p>}
           <button
             onClick={enterCameraCheck}
             disabled={status !== "ready"}
@@ -208,7 +208,7 @@ export default function Play() {
       )}
 
       {stage === "CAMERA_CHECK" && (
-        <div className="rounded-2xl bg-zinc-950/70 p-10 backdrop-blur-sm">
+        <div className="rounded-2xl bg-[var(--background)]/95 p-10 shadow-lg backdrop-blur-sm">
           <CameraCheck
             isVisible={isVisible}
             stabilityMs={CONFIG.READY_STABILITY_MS}
@@ -269,12 +269,12 @@ export default function Play() {
       )}
 
       {stage === "RESULTS" && (
-        <div className="flex max-h-full flex-col items-center gap-6 overflow-y-auto rounded-2xl bg-zinc-950/80 p-10 text-center backdrop-blur-sm">
+        <div className="flex max-h-full flex-col items-center gap-6 overflow-y-auto rounded-2xl bg-[var(--background)]/95 p-10 text-center shadow-lg backdrop-blur-sm">
           <div>
             <p className="text-8xl font-black leading-none tabular-nums text-[var(--accent)]">{finalScore}</p>
-            <p className="text-sm tracking-[0.3em] text-zinc-400">FINAL SCORE</p>
+            <p className="text-sm tracking-[0.3em] text-zinc-500">FINAL SCORE</p>
           </div>
-          {isNewBest && <p className="text-xl font-extrabold text-pink-400">New best!</p>}
+          {isNewBest && <p className="text-xl font-extrabold text-pink-600">New best!</p>}
 
           {!submitted ? (
             <form onSubmit={handleSubmit} className="flex gap-3">
@@ -283,7 +283,7 @@ export default function Play() {
                 onChange={(e) => setNameValue(e.target.value)}
                 maxLength={CONFIG.NAME_MAX_LEN}
                 placeholder="Your name"
-                className="rounded-full border-2 border-white/25 bg-white/10 px-5 py-3 text-lg text-white outline-none focus:border-[var(--accent)]"
+                className="rounded-full border-2 border-zinc-300 bg-white px-5 py-3 text-lg text-zinc-900 outline-none focus:border-[var(--accent)]"
               />
               <button
                 type="submit"
@@ -293,7 +293,7 @@ export default function Play() {
               </button>
             </form>
           ) : (
-            <p className="font-bold text-emerald-400">Saved!</p>
+            <p className="font-bold text-emerald-600">Saved!</p>
           )}
 
           <ul className="flex w-full max-w-md flex-col gap-1">
@@ -303,7 +303,7 @@ export default function Play() {
                 key={`${entry.name}-${entry.created_at}`}
                 className={
                   "grid grid-cols-[2rem_1fr_auto] items-center gap-3 rounded-lg px-4 py-2 text-left " +
-                  (isSameEntry(entry, lastSubmitted) ? "bg-[var(--accent)]/20 ring-1 ring-[var(--accent)]" : "bg-white/5")
+                  (isSameEntry(entry, lastSubmitted) ? "bg-[var(--accent)]/20 ring-1 ring-[var(--accent)]" : "bg-zinc-100")
                 }
               >
                 <span className="font-extrabold text-zinc-500">{i + 1}</span>

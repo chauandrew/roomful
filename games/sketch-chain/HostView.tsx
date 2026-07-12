@@ -45,10 +45,10 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
         <h2 className="max-w-4xl text-balance text-6xl font-black leading-tight">
           {TASK_LABEL[g.task]}
         </h2>
-        <p className="mt-12 text-3xl text-zinc-400">
+        <p className="mt-12 text-3xl text-zinc-600">
           <span className="font-black text-[var(--accent)]">{g.submittedCount}</span>
           {" of "}
-          <span className="font-bold text-white">{g.playerCount}</span> handed in
+          <span className="font-bold text-zinc-900">{g.playerCount}</span> handed in
         </p>
         {g.waitingOn.length > 0 && g.waitingOn.length <= 6 && (
           <p className="mt-4 text-xl text-zinc-500">
@@ -92,7 +92,7 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
           <div key={i} className="w-full max-w-3xl">
             <p className="mb-1 text-sm text-zinc-500">{e.authorName}</p>
             {e.kind === "text" ? (
-              <p className="rounded-xl bg-zinc-900 px-6 py-4 text-3xl font-bold">
+              <p className="rounded-xl bg-zinc-100 px-6 py-4 text-3xl font-bold">
                 “{e.value}”
               </p>
             ) : e.value ? (
@@ -104,7 +104,7 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
                 className="max-h-96 rounded-xl bg-white"
               />
             ) : (
-              <p className="rounded-xl bg-zinc-900 px-6 py-4 text-2xl italic text-zinc-500">
+              <p className="rounded-xl bg-zinc-100 px-6 py-4 text-2xl italic text-zinc-500">
                 (no drawing)
               </p>
             )}

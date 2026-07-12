@@ -1,6 +1,6 @@
 "use client";
 /**
- * Shared shell for every host-facing (projected) screen: fullscreen, dark,
+ * Shared shell for every host-facing (projected) screen: fullscreen,
  * large type, one accent color per game (exposed as the --accent CSS var),
  * and a small control bar that stays out of the way of the projection.
  */
@@ -19,7 +19,7 @@ export function PresenterLayout({
 }) {
   return (
     <div
-      className="fixed inset-0 flex flex-col overflow-hidden bg-zinc-950 text-white"
+      className="fixed inset-0 flex flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)]"
       style={{ "--accent": accent } as CSSProperties}
     >
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8">
@@ -62,7 +62,7 @@ export function BarButton({
         "rounded-md px-3 py-1.5 text-sm font-medium transition-colors " +
         (primary
           ? "bg-[var(--accent)] text-zinc-950 hover:brightness-110"
-          : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700")
+          : "bg-zinc-200 text-zinc-700 hover:bg-zinc-300")
       }
     >
       {children}

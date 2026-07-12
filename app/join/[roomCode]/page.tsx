@@ -19,7 +19,7 @@ export default function JoinPage() {
 
   if (!isValidRoomCode(code)) {
     return (
-      <Shell accent="#fbbf24">
+      <Shell accent="#e0a92e">
         <Message emoji="🤔" title="That's not a room code.">
           <Link href="/" className="text-[var(--accent)] underline">
             Go home and try again
@@ -37,7 +37,7 @@ function PlayerRoom({ code }: { code: string }) {
     role: "player",
   });
   const meta = view ? getGameMeta(view.gameId) : undefined;
-  const accent = meta?.accent ?? "#fbbf24";
+  const accent = meta?.accent ?? "#e0a92e";
   const PlayerView = view ? gameComponents[view.gameId]?.PlayerView : undefined;
 
   let content: React.ReactNode;
@@ -60,7 +60,7 @@ function PlayerRoom({ code }: { code: string }) {
   } else if (view.phase === "lobby") {
     content = (
       <Message emoji="🎉" title={`You're in, ${view.you?.name}!`}>
-        <p className="text-zinc-400">
+        <p className="text-zinc-600">
           {view.players.length} player{view.players.length === 1 ? "" : "s"} in the
           room. Watch the big screen — the host starts the game.
         </p>
@@ -82,7 +82,7 @@ function PlayerRoom({ code }: { code: string }) {
     <Shell accent={accent} header={view ? `${meta?.name ?? ""} · ${code}` : code}>
       {content}
       {view && !connected && (
-        <p className="mt-6 animate-pulse text-center text-sm text-amber-400">
+        <p className="mt-6 animate-pulse text-center text-sm text-amber-600">
           Reconnecting…
         </p>
       )}
@@ -151,7 +151,7 @@ function NameForm({ onJoin, code }: { onJoin: (name: string) => void; code: stri
         maxLength={20}
         autoFocus
         autoComplete="off"
-        className="rounded-xl border-2 border-zinc-700 bg-zinc-800 px-4 py-4 text-center text-xl font-bold placeholder-zinc-500 focus:border-[var(--accent)] focus:outline-none"
+        className="rounded-xl border-2 border-zinc-300 bg-white px-4 py-4 text-center text-xl font-bold placeholder-zinc-400 focus:border-[var(--accent)] focus:outline-none"
       />
       <button
         type="submit"

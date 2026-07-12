@@ -9,5 +9,5 @@ export const majorityRulesMeta: GameMeta = {
   minPlayers: 2,
   maxPlayers: 100,
   durationMinutes: 15,
-  accent: "#34d399",
+  accent: "#4f9a43",
 };

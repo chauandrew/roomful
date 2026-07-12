@@ -23,7 +23,7 @@ export function JoinCodeForm() {
         maxLength={ROOM_CODE_LENGTH}
         autoCapitalize="characters"
         autoComplete="off"
-        className="w-full rounded-xl border-2 border-zinc-700 bg-zinc-900 px-4 py-3 text-center font-mono text-xl font-bold tracking-[0.3em] placeholder:tracking-normal placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none"
+        className="w-full rounded-xl border-2 border-zinc-300 bg-white px-4 py-3 text-center font-mono text-xl font-bold tracking-[0.3em] placeholder:tracking-normal placeholder:text-zinc-400 focus:border-amber-500 focus:outline-none"
       />
       <button
         type="submit"

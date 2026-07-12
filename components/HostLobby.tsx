@@ -32,13 +32,13 @@ export function HostLobby({
       <h1 className="text-5xl font-black text-[var(--accent)]">{meta.name}</h1>
 
       <div className="flex items-center gap-14">
-        <div className="rounded-2xl bg-white p-5">
+        <div className="rounded-2xl border-2 border-zinc-200 bg-white p-5 shadow-sm">
           {joinUrl && <QRCode value={joinUrl} size={220} />}
         </div>
         <div className="text-left">
-          <p className="text-2xl text-zinc-400">Join on your phone</p>
+          <p className="text-2xl text-zinc-600">Join on your phone</p>
           <p className="mt-1 text-3xl font-bold">{joinUrl.replace(/^https?:\/\//, "")}</p>
-          <p className="mt-6 text-2xl text-zinc-400">Room code</p>
+          <p className="mt-6 text-2xl text-zinc-600">Room code</p>
           <p className="font-mono text-8xl font-black tracking-[0.15em] text-[var(--accent)]">
             {view.code}
           </p>
@@ -54,7 +54,7 @@ export function HostLobby({
             key={p.id}
             className={
               "group rounded-full px-5 py-2 text-xl font-bold " +
-              (p.connected ? "bg-zinc-800" : "bg-zinc-900 text-zinc-600 line-through")
+              (p.connected ? "bg-zinc-200" : "bg-zinc-100 text-zinc-400 line-through")
             }
           >
             {p.name}
