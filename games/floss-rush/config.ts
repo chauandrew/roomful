@@ -37,4 +37,5 @@ export const CONFIG = {
 
   // --- Display ---
   SHOW_SKELETON: true,
+  SCORE_TICK_MS: 40, // how often the displayed score climbs by 1 toward the real total
 };
