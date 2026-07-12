@@ -35,3 +35,25 @@ export function isVisible(
   if (!landmarks) return false;
   return requiredIndices.every((i) => (landmarks[i]?.visibility ?? 0) >= threshold);
 }
+
+// FaceLandmarker's mouth/eye-corner indices, standard MediaPipe FaceMesh topology.
+const UPPER_INNER_LIP = 13;
+const LOWER_INNER_LIP = 14;
+const LEFT_EYE_OUTER = 33;
+const RIGHT_EYE_OUTER = 263;
+
+/**
+ * Raw mouth-open ratio: vertical gap between the inner lips, normalized by
+ * inter-eye distance so it's independent of how close the face is to the
+ * camera. Pure and unsmoothed — callers (e.g. a game's detector) should run
+ * this through a MovingAverage themselves.
+ */
+export function mouthOpenRatio(landmarks: Landmark[]): number {
+  const upperLip = landmarks[UPPER_INNER_LIP];
+  const lowerLip = landmarks[LOWER_INNER_LIP];
+  const leftEye = landmarks[LEFT_EYE_OUTER];
+  const rightEye = landmarks[RIGHT_EYE_OUTER];
+  const eyeDist = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y);
+  if (eyeDist === 0) return 0;
+  return Math.abs(upperLip.y - lowerLip.y) / eyeDist;
+}
