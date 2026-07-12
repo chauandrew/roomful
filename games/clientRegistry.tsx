@@ -20,13 +20,6 @@ export interface GameComponents {
 }
 
 export const gameComponents: Record<string, GameComponents> = {
-  gibberish: {
-    Play: dynamic(() => import("./gibberish/Play")),
-  },
-  "majority-rules": {
-    HostView: dynamic(() => import("./majority-rules/HostView")),
-    PlayerView: dynamic(() => import("./majority-rules/PlayerView")),
-  },
   "sketch-chain": {
     HostView: dynamic(() => import("./sketch-chain/HostView")),
     PlayerView: dynamic(() => import("./sketch-chain/PlayerView")),

@@ -15,7 +15,7 @@ Pick your mode first:
 
 ## 1. Single-device game
 
-**Files** (see `games/gibberish/` for the reference):
+**Files** (see `games/floss-rush/` for the reference):
 
 ```
 games/my-game/
@@ -39,8 +39,7 @@ Done. It appears on the homepage and is playable at `/play/my-game`.
 
 ## 2. Multi-user game
 
-**Files** (see `games/majority-rules/` for simultaneous rounds,
-`games/sketch-chain/` for sequential/chain rounds):
+**Files** (see `games/sketch-chain/` for sequential/chain rounds):
 
 ```
 games/my-game/
@@ -89,7 +88,7 @@ Both are just reducer shapes:
   `submissions: Record<playerId, Input>` in state; accept input while your
   phase is collecting; let the host reveal via `onHostAction`, or
   auto-advance when `allSubmitted(playerIds, submissions)` (helper in
-  `games/types.ts`). Reference: `majority-rules/server.ts`.
+  `games/types.ts`).
 - **Sequential/chain** ("your output is my next input"): freeze the player
   order in `init`, keep `chains: Entry[][]`, and use
   `chainAssignments(playerIds, step)` (helper) to route chain → player each

@@ -1,6 +1,6 @@
 /**
  * The Roomful room server. One instance of this class runs per room code
- * (PartyKit spins it up on first connection and tears it down when the last
+ * (a Durable Object spun up on first connection and torn down when the last
  * connection closes — which is exactly the ephemeral lifetime we want).
  *
  * This file is deliberately game-agnostic. It owns:
@@ -13,7 +13,7 @@
  * reducer, looked up from games/server-registry.ts. To add a game you never
  * edit this file.
  */
-import type * as Party from "partykit/server";
+import { Server, type Connection, type ConnectionContext } from "partyserver";
 import type { ClientView, Player, RoomState } from "../lib/types";
 import {
   parseClientMessage,
@@ -25,15 +25,13 @@ import { serverGames } from "../games/server-registry";
 
 type ConnMeta = { role: "host" } | { role: "player"; playerId: string };
 
-export default class RoomfulServer implements Party.Server {
+export class RoomfulServer extends Server {
   state: RoomState | null = null;
   hostKey: string | null = null;
   /** connection id → who is on the other end */
   conns = new Map<string, ConnMeta>();
 
-  constructor(readonly room: Party.Room) {}
-
-  onConnect(conn: Party.Connection, ctx: Party.ConnectionContext) {
+  onConnect(conn: Connection, ctx: ConnectionContext) {
     // Player pages connect before the user has typed a name; tell them
     // immediately if the room doesn't exist so they see a clear error
     // instead of a name form for a dead room. Host pages create the room
@@ -44,7 +42,7 @@ export default class RoomfulServer implements Party.Server {
     }
   }
 
-  onMessage(raw: string | ArrayBuffer | ArrayBufferView, sender: Party.Connection) {
+  onMessage(sender: Connection, raw: string | ArrayBuffer | ArrayBufferView) {
     if (typeof raw !== "string") return;
     const msg = parseClientMessage(raw);
     if (!msg) {
@@ -72,7 +70,7 @@ export default class RoomfulServer implements Party.Server {
     }
   }
 
-  onClose(conn: Party.Connection) {
+  onClose(conn: Connection) {
     const meta = this.conns.get(conn.id);
     this.conns.delete(conn.id);
     if (!this.state || !meta) return;
@@ -90,7 +88,7 @@ export default class RoomfulServer implements Party.Server {
 
   // ── lifecycle ──────────────────────────────────────────────────────────
 
-  private claimHost(conn: Party.Connection, gameId: string, hostKey: string) {
+  private claimHost(conn: Connection, gameId: string, hostKey: string) {
     if (this.state && this.hostKey !== hostKey) {
       this.sendError(conn, "room-taken", "This room code is already in use.");
       return;
@@ -102,7 +100,7 @@ export default class RoomfulServer implements Party.Server {
       }
       this.state = {
         // Room ids are lowercased on connect (URL-safe); display uppercase.
-        code: this.room.id.toUpperCase(),
+        code: this.name.toUpperCase(),
         gameId,
         phase: "lobby",
         players: [],
@@ -114,7 +112,7 @@ export default class RoomfulServer implements Party.Server {
     this.broadcastSync();
   }
 
-  private join(conn: Party.Connection, playerId: string, name: string) {
+  private join(conn: Connection, playerId: string, name: string) {
     if (!this.state) {
       this.sendError(conn, "room-not-found", "That room doesn't exist (or has ended).");
       return;
@@ -142,7 +140,7 @@ export default class RoomfulServer implements Party.Server {
     this.broadcastSync();
   }
 
-  private handleHostAction(conn: Party.Connection, action: HostAction) {
+  private handleHostAction(conn: Connection, action: HostAction) {
     if (!this.state) return;
     const { meta, logic } = serverGames[this.state.gameId];
 
@@ -182,7 +180,7 @@ export default class RoomfulServer implements Party.Server {
         this.state.players = this.state.players.filter((p) => p.id !== action.playerId);
         for (const [connId, meta2] of this.conns) {
           if (meta2.role === "player" && meta2.playerId === action.playerId) {
-            this.room.getConnection(connId)?.close();
+            this.getConnection(connId)?.close();
           }
         }
         break;
@@ -200,7 +198,7 @@ export default class RoomfulServer implements Party.Server {
     this.broadcastSync();
   }
 
-  private handlePlayerInput(conn: Party.Connection, input: unknown) {
+  private handlePlayerInput(conn: Connection, input: unknown) {
     const meta = this.conns.get(conn.id);
     if (!this.state || meta?.role !== "player") return;
     if (this.state.phase !== "playing" || this.state.game === null) return;
@@ -244,17 +242,15 @@ export default class RoomfulServer implements Party.Server {
   private broadcastSync() {
     if (!this.state) return;
     for (const [connId, meta] of this.conns) {
-      const conn = this.room.getConnection(connId);
+      const conn = this.getConnection(connId);
       if (!conn) continue;
       const msg: ServerMessage = { type: "sync", view: this.buildView(meta) };
       conn.send(JSON.stringify(msg));
     }
   }
 
-  private sendError(conn: Party.Connection, code: RoomErrorCode, message: string) {
+  private sendError(conn: Connection, code: RoomErrorCode, message: string) {
     const msg: ServerMessage = { type: "error", code, message };
     conn.send(JSON.stringify(msg));
   }
 }
-
-RoomfulServer satisfies Party.Worker;
