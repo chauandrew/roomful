@@ -8,6 +8,10 @@ interface CameraCheckProps {
   stabilityMs: number;
   onReady: () => void;
   onBack: () => void;
+  /** Shown while nothing is tracked yet. Defaults to floss-rush's body-pose copy. */
+  notVisibleLabel?: string;
+  /** Subject used in the two "tracked" states, e.g. "Body detected" / "Face detected". */
+  visibleLabel?: string;
 }
 
 /**
@@ -16,7 +20,14 @@ interface CameraCheckProps {
  * isn't enough), and re-disables the moment tracking drops — same rule
  * floss-rush uses so "ready" here can never disagree with in-game counting.
  */
-export function CameraCheck({ isVisible, stabilityMs, onReady, onBack }: CameraCheckProps) {
+export function CameraCheck({
+  isVisible,
+  stabilityMs,
+  onReady,
+  onBack,
+  notVisibleLabel = "Step back — get your arms & hips in frame",
+  visibleLabel = "Body detected",
+}: CameraCheckProps) {
   const readySinceRef = useRef<number | null>(null);
   const [stable, setStable] = useState(false);
 
@@ -45,11 +56,7 @@ export function CameraCheck({ isVisible, stabilityMs, onReady, onBack }: CameraC
           "text-3xl font-bold " + (isVisible ? "text-[var(--accent)]" : "text-zinc-500")
         }
       >
-        {!isVisible
-          ? "Step back — get your arms & hips in frame"
-          : gated
-            ? "Body detected — you're good to go!"
-            : "Body detected — hold on…"}
+        {!isVisible ? notVisibleLabel : gated ? `${visibleLabel} — you're good to go!` : `${visibleLabel} — hold on…`}
       </p>
       <div className="flex gap-4">
         <button

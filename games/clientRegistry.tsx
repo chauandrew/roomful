@@ -29,4 +29,9 @@ export const gameComponents: Record<string, GameComponents> = {
     // which doesn't exist during server-side rendering.
     Play: dynamic(() => import("./floss-rush/Play"), { ssr: false }),
   },
+  "chomp-chomp": {
+    // ssr:false required — useFaceTracking touches navigator.mediaDevices,
+    // which doesn't exist during server-side rendering.
+    Play: dynamic(() => import("./chomp-chomp/Play"), { ssr: false }),
+  },
 };
