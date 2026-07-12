@@ -195,7 +195,7 @@ export default function Play() {
             Floss <span className="text-[var(--accent)]">Rush</span>
           </h1>
           <p className="max-w-md text-xl text-zinc-700">
-            Step up to the camera and floss as fast and wide as you can. 15 seconds on the clock.
+            Step up to the camera and floss as fast as you can. 15 seconds on the clock.
           </p>
           <p className="text-sm text-zinc-500">Your best: {best}</p>
           {status === "error" && <p className="max-w-md font-semibold text-pink-600">{errorMessage}</p>}
