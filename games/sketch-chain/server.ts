@@ -148,7 +148,8 @@ export const sketchChainLogic: MultiUserGameLogic<SCState, SCHostAction, SCInput
 
     const { chain, upTo } = state.cursor;
     const allDone = chain >= n;
-    const current = allDone ? [] : state.chains[chain];
+    // Reveal in reverse: the final entry appears first, the starting prompt last.
+    const current = allDone ? [] : [...state.chains[chain]].reverse();
     return {
       phase: "reveal" as const,
       chainIndex: Math.min(chain, n - 1),
