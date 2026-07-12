@@ -34,4 +34,9 @@ export const gameComponents: Record<string, GameComponents> = {
     // which doesn't exist during server-side rendering.
     Play: dynamic(() => import("./chomp-chomp/Play"), { ssr: false }),
   },
+  "fruit-ninja": {
+    // ssr:false required — useHandTracking touches navigator.mediaDevices,
+    // which doesn't exist during server-side rendering.
+    Play: dynamic(() => import("./fruit-ninja/Play"), { ssr: false }),
+  },
 };

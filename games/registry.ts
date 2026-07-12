@@ -17,8 +17,9 @@ import type { GameMeta } from "@/lib/types";
 import { flossRushMeta } from "./floss-rush/meta";
 import { sketchChainMeta } from "./sketch-chain/meta";
 import { chompChompMeta } from "./chomp-chomp/meta";
+import { fruitNinjaMeta } from "./fruit-ninja/meta";
 
-export const games: GameMeta[] = [sketchChainMeta, flossRushMeta, chompChompMeta];
+export const games: GameMeta[] = [sketchChainMeta, flossRushMeta, chompChompMeta, fruitNinjaMeta];
 
 export function getGameMeta(id: string): GameMeta | undefined {
   return games.find((g) => g.id === id);
