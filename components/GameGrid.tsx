@@ -47,7 +47,7 @@ export function GameGrid({ games }: { games: GameMeta[] }) {
               <h2 className="text-2xl font-black" style={{ color: game.accent }}>
                 {game.name}
               </h2>
-              <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
                 {game.mode === "single-device" ? "📺 Big screen" : "📱 Phones"}
               </span>
             </div>
