@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "test:fruit-ninja": "tsx --test games/fruit-ninja/*.test.ts",
     "deploy:party": "wrangler deploy"
   },
   "dependencies": {
@@ -32,6 +33,7 @@
     "eslint-config-next": "16.2.10",
     "npm-run-all": "^4.1.5",
     "tailwindcss": "^4",
+    "tsx": "^4.23.0",
     "typescript": "^5",
     "wrangler": "^4.110.0"
   },
