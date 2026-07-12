@@ -36,7 +36,6 @@ export default function Play() {
   const [score, setScore] = useState(0);
   const [isVisible, setIsVisible] = useState(false);
 
-  const [pointsFlash, setPointsFlash] = useState<{ points: number; id: number } | null>(null);
   const [formFlashId, setFormFlashId] = useState<number | null>(null);
 
   const [finalScore, setFinalScore] = useState(0);
@@ -55,12 +54,6 @@ export default function Play() {
   const handleResultRef = useRef<(result: PoseResult | null) => void>(() => {});
 
   useEffect(() => {
-    if (!pointsFlash) return;
-    const t = setTimeout(() => setPointsFlash(null), 700);
-    return () => clearTimeout(t);
-  }, [pointsFlash]);
-
-  useEffect(() => {
     if (formFlashId === null) return;
     const t = setTimeout(() => setFormFlashId(null), 800);
     return () => clearTimeout(t);
@@ -75,9 +68,7 @@ export default function Play() {
 
   const addPoints = useCallback((points: number, goodForm: boolean) => {
     scoreRef.current += points;
-    setScore(scoreRef.current);
     flashCounterRef.current += 1;
-    setPointsFlash({ points, id: flashCounterRef.current });
     if (goodForm) setFormFlashId(flashCounterRef.current);
   }, []);
 
@@ -136,6 +127,17 @@ export default function Play() {
     handleResultRef.current = handleResult;
   }, [handleResult]);
 
+  // Climbs the displayed score up to the real total 1 point at a time, rather
+  // than jumping straight to it — scoreRef.current (the real total driving
+  // endGame/leaderboard/best) is unaffected either way.
+  useEffect(() => {
+    if (stage !== "PLAYING") return;
+    const id = setInterval(() => {
+      setScore((s) => (s < scoreRef.current ? s + 1 : s));
+    }, CONFIG.SCORE_TICK_MS);
+    return () => clearInterval(id);
+  }, [stage]);
+
   const beginPlay = useCallback(() => {
     scoreRef.current = 0;
     setScore(0);
@@ -193,7 +195,7 @@ export default function Play() {
             Floss <span className="text-[var(--accent)]">Rush</span>
           </h1>
           <p className="max-w-md text-xl text-zinc-700">
-            Step up to the camera and floss as fast and wide as you can. 15 seconds on the clock.
+            Step up to the camera and floss as fast as you can. 15 seconds on the clock.
           </p>
           <p className="text-sm text-zinc-500">Your best: {best}</p>
           {status === "error" && <p className="max-w-md font-semibold text-pink-600">{errorMessage}</p>}
@@ -241,15 +243,6 @@ export default function Play() {
             </p>
             <p className="text-lg tracking-[0.3em] text-zinc-300">SCORE</p>
           </div>
-
-          {pointsFlash && (
-            <p
-              key={`points-${pointsFlash.id}`}
-              className="absolute bottom-56 left-1/2 -translate-x-1/2 animate-bounce text-4xl font-extrabold text-emerald-400 drop-shadow-[0_8px_40px_rgba(0,0,0,0.6)]"
-            >
-              +{pointsFlash.points}
-            </p>
-          )}
 
           {formFlashId !== null && (
             <p
