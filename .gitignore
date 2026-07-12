@@ -40,7 +40,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# partykit dev cache
+# wrangler / partykit dev cache
+.wrangler/
 .partykit/
 
 # keep the env template

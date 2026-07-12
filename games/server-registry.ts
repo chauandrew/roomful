@@ -11,8 +11,6 @@
 import type { GameMeta } from "../lib/types";
 import type { MultiUserGameLogic } from "./types";
 
-import { majorityRulesMeta } from "./majority-rules/meta";
-import { majorityRulesLogic } from "./majority-rules/server";
 import { sketchChainMeta } from "./sketch-chain/meta";
 import { sketchChainLogic } from "./sketch-chain/server";
 
@@ -23,6 +21,5 @@ export interface ServerGame {
 }
 
 export const serverGames: Record<string, ServerGame> = {
-  "majority-rules": { meta: majorityRulesMeta, logic: majorityRulesLogic },
   "sketch-chain": { meta: sketchChainMeta, logic: sketchChainLogic },
 };
