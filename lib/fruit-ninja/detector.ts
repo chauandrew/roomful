@@ -9,14 +9,25 @@
  * positions at `sinceT` and `now`, so a briefly-undetected swipe keeps
  * slicing instead of teleporting. Pure functions, no React/canvas.
  */
-import { CONFIG } from "./config";
 import { predictPosition, type HandTrackerState } from "./handTracker";
-import type { Entity } from "./physics";
+import type { Entity } from "./types";
+
+export interface ComboConfig {
+  enabled: boolean;
+  bonus: number;
+}
+
+export interface StrokeHit {
+  player?: 0 | 1;
+  fruitCount: number;
+  bombCount: number;
+  comboBonus: number;
+}
 
 export interface SliceResult {
-  slicedFruit: Entity[];
-  slicedBombs: Entity[];
-  comboBonus: number;
+  slicedFruit: Entity[]; // union, for removal + splashes
+  slicedBombs: Entity[]; // union
+  hits: StrokeHit[]; // one per slot that cut something
 }
 
 type Segment = [number, number, number, number]; // ax, ay, bx, by
@@ -44,12 +55,13 @@ export function detectSlices(
   entities: Entity[],
   now: number,
   sinceT: number,
-  aspect: number
+  aspect: number,
+  combo: ComboConfig
 ): SliceResult {
   const slicedIds = new Set<number>();
   const slicedFruit: Entity[] = [];
   const slicedBombs: Entity[] = [];
-  let comboBonus = 0;
+  const hits: StrokeHit[] = [];
 
   for (const slot of state) {
     if (!slot.active || slot.trail.length === 0) continue;
@@ -69,6 +81,7 @@ export function detectSlices(
     if (segs.length === 0) continue;
 
     let fruitThisStroke = 0;
+    let bombThisStroke = 0;
     for (const e of entities) {
       if (slicedIds.has(e.id)) continue; // one cut per entity, even across hands
       for (const seg of segs) {
@@ -79,14 +92,15 @@ export function detectSlices(
           fruitThisStroke++;
         } else {
           slicedBombs.push(e);
+          bombThisStroke++;
         }
         break;
       }
     }
-    if (CONFIG.COMBO_ENABLED && fruitThisStroke > 1) {
-      comboBonus += (fruitThisStroke - 1) * CONFIG.COMBO_BONUS;
-    }
+    if (fruitThisStroke === 0 && bombThisStroke === 0) continue;
+    const comboBonus = combo.enabled && fruitThisStroke > 1 ? (fruitThisStroke - 1) * combo.bonus : 0;
+    hits.push({ player: slot.player, fruitCount: fruitThisStroke, bombCount: bombThisStroke, comboBonus });
   }
 
-  return { slicedFruit, slicedBombs, comboBonus };
+  return { slicedFruit, slicedBombs, hits };
 }

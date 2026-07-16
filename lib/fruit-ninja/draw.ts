@@ -1,22 +1,14 @@
 /**
- * Fruit Ninja's own canvas rendering. Entities and hand trails live in the
- * un-mirrored normalized space the tracker uses; every function here mirrors
- * x once (canvas.width - x * canvas.width) so everything lands in the same
- * mirrored space as the video frame.
+ * Fruit Ninja engine rendering: entities, slice splashes, and hand trails.
+ * Entities and hand trails live in the un-mirrored normalized space the
+ * tracker uses; every function here mirrors x once
+ * (canvas.width - x * canvas.width) so everything lands in the same mirrored
+ * space as the video frame.
  */
-import { CONFIG } from "./config";
-import { predictPosition, type HandTrackerState } from "./handTracker";
-import type { Entity } from "./physics";
+import { predictPosition, type HandSlot, type HandTrackerState } from "./handTracker";
+import type { Entity, Splash } from "./types";
 
-export interface Splash {
-  x: number;
-  y: number;
-  radius: number; // of the entity that popped, fraction of height
-  color: string;
-  t: number; // when it was created
-}
-
-const HAND_COLORS = ["#4ade80", "#60a5fa", "#f472b6", "#facc15"];
+export type { Splash } from "./types";
 
 export function drawEntities(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, entities: Entity[]) {
   for (const e of entities) {
@@ -66,9 +58,15 @@ export function drawEntities(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasEl
 }
 
 /** Expanding, fading ring + flecks where an entity was just sliced. */
-export function drawSplashes(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, splashes: Splash[], now: number) {
+export function drawSplashes(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  splashes: Splash[],
+  now: number,
+  splashMs: number
+) {
   for (const s of splashes) {
-    const age = (now - s.t) / CONFIG.SPLASH_MS;
+    const age = (now - s.t) / splashMs;
     if (age >= 1) continue;
     const x = canvas.width - s.x * canvas.width;
     const y = s.y * canvas.height;
@@ -97,13 +95,19 @@ export function drawSplashes(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasEl
  * mid-dropout gets a dashed segment out to its dead-reckoned position and a
  * hollow tip there, so the blade visibly keeps moving instead of freezing.
  */
-export function drawHandTrails(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, state: HandTrackerState, now: number) {
+export function drawHandTrails(
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  state: HandTrackerState,
+  now: number,
+  colorForSlot: (slot: HandSlot, index: number) => string
+) {
   const px = (nx: number) => canvas.width - nx * canvas.width;
   const py = (ny: number) => ny * canvas.height;
 
   state.forEach((slot, i) => {
     if (!slot.active || slot.trail.length === 0) return;
-    const color = HAND_COLORS[i % HAND_COLORS.length];
+    const color = colorForSlot(slot, i);
 
     ctx.strokeStyle = color;
     ctx.lineWidth = 4;
@@ -142,36 +146,4 @@ export function drawHandTrails(ctx: CanvasRenderingContext2D, canvas: HTMLCanvas
     }
     ctx.setLineDash([]);
   });
-}
-
-export function drawHud(
-  ctx: CanvasRenderingContext2D,
-  canvas: HTMLCanvasElement,
-  score: number,
-  lives: number,
-  remainingMs: number
-) {
-  ctx.lineWidth = 4;
-  ctx.strokeStyle = "black";
-  ctx.fillStyle = "white";
-  ctx.font = `bold ${Math.max(24, canvas.width / 28)}px sans-serif`;
-  const scoreText = `Score ${score}`;
-  ctx.strokeText(scoreText, 24, 52);
-  ctx.fillText(scoreText, 24, 52);
-
-  ctx.font = `bold ${Math.max(24, canvas.width / 28)}px sans-serif`;
-  for (let i = 0; i < CONFIG.LIVES; i++) {
-    ctx.fillStyle = i < lives ? "#f87171" : "rgba(255,255,255,0.25)";
-    const heartX = 24 + i * Math.max(30, canvas.width / 26);
-    ctx.strokeText("♥", heartX, 100);
-    ctx.fillText("♥", heartX, 100);
-  }
-
-  ctx.font = `bold ${Math.max(32, canvas.width / 20)}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.fillStyle = "white";
-  const timerText = (remainingMs / 1000).toFixed(1);
-  ctx.strokeText(timerText, canvas.width / 2, 60);
-  ctx.fillText(timerText, canvas.width / 2, 60);
-  ctx.textAlign = "left";
 }

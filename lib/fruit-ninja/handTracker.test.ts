@@ -1,10 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { CONFIG } from "./config";
 import {
   createHandTracker,
   updateHandTracker,
   predictPosition,
+  DEFAULT_TRACKER_TUNING,
   type HandTrackerState,
   type HandDetection,
 } from "./handTracker";
@@ -43,9 +43,9 @@ test("trail grows with correct points/timestamps and caps at TRAIL_LENGTH", () =
   for (let i = 3; i < 12; i++) {
     s = updateHandTracker(s, [{ x: 0.1 + 0.02 * i, y: 0.5 }], 1000 + FRAME * i);
   }
-  assert.equal(s[0].trail.length, CONFIG.TRAIL_LENGTH);
+  assert.equal(s[0].trail.length, DEFAULT_TRACKER_TUNING.trailLength);
   // Oldest points shifted out, newest kept.
-  assert.equal(s[0].trail[CONFIG.TRAIL_LENGTH - 1].x, 0.1 + 0.02 * 11);
+  assert.equal(s[0].trail[DEFAULT_TRACKER_TUNING.trailLength - 1].x, 0.1 + 0.02 * 11);
 });
 
 test("velocity estimate converges to the true constant velocity", () => {
@@ -58,8 +58,8 @@ test("velocity estimate converges to the true constant velocity", () => {
 
 test("fast swipe surviving a multi-frame dropout re-matches the same slot, bridged", () => {
   // 0.003 units/ms for 96ms of dropout = 0.288 raw travel, beyond
-  // MAX_MATCH_DISTANCE (0.25) — only prediction-based matching can bridge it.
-  assert.ok(0.003 * 96 > CONFIG.MAX_MATCH_DISTANCE);
+  // maxMatchDistance (0.25) — only prediction-based matching can bridge it.
+  assert.ok(0.003 * 96 > DEFAULT_TRACKER_TUNING.maxMatchDistance);
   let { state: s } = feedLine(createHandTracker(), { x: 0.1, y: 0.5 }, { vx: 0.003, vy: 0 }, 0, 4);
   const preGapTrail = s[0].trail.slice();
 
@@ -86,7 +86,7 @@ test("stalled camera redelivering one identical point never fabricates motion, a
   // Contract: a fully stalled feed carries zero new information, so the
   // tracker must never build a velocity, a multi-point trail, a bridged
   // point, or a sliceable segment out of it — no matter how long it stalls —
-  // and past MAX_GAP_MS it must actually go (and stay) inactive rather than
+  // and past maxGapMs it must actually go (and stay) inactive rather than
   // being instantly resurrected by the same stale point forever.
   const P = { x: 0.5, y: 0.5 };
   let s = updateHandTracker(createHandTracker(), [P], 1000);
@@ -100,7 +100,7 @@ test("stalled camera redelivering one identical point never fabricates motion, a
       assert.equal(slot.sawGap, false);
     }
   }
-  assert.ok(s.every((slot) => !slot.active), "no slot survives well past MAX_GAP_MS of stale-only input");
+  assert.ok(s.every((slot) => !slot.active), "no slot survives well past maxGapMs of stale-only input");
 
   // And it must stay retired — the same stale point arriving again must not
   // resurrect it, only genuinely different motion should open a new slot.
@@ -139,9 +139,9 @@ test("predictPosition extrapolates a sub-cap constant velocity exactly", () => {
 
 test("predictPosition is strictly monotonic in atTime past the speed cap", () => {
   // Regression for the displacement-clamp bug: vx=0.005 saturates the old
-  // DEAD_RECKON_MAX_DRIFT displacement cap by dt=40ms, so dt=60 and dt=100
+  // deadReckonMaxDrift displacement cap by dt=40ms, so dt=60 and dt=100
   // used to collapse onto the identical point (zero-length bridge segment).
-  const maxSpeed = CONFIG.DEAD_RECKON_MAX_DRIFT / CONFIG.MAX_GAP_MS;
+  const maxSpeed = DEFAULT_TRACKER_TUNING.deadReckonMaxDrift / DEFAULT_TRACKER_TUNING.maxGapMs;
   const slot = {
     active: true,
     trail: [{ x: 0.3, y: 0.5, t: 1000, bridged: false }],
@@ -227,15 +227,71 @@ test("more than 4 simultaneous detections never exceed 4 slots", () => {
 test("near detection extends the existing slot; far detection opens a new one", () => {
   const s = updateHandTracker(createHandTracker(), [{ x: 0.2, y: 0.2 }], 0);
 
-  // dist ~0.141 < MAX_MATCH_DISTANCE: extends
+  // dist ~0.141 < maxMatchDistance: extends
   const near = updateHandTracker(s, [{ x: 0.3, y: 0.3 }], FRAME);
   assert.equal(near.length, 1);
   assert.equal(near[0].trail.length, 2);
 
-  // dist ~0.72 > MAX_MATCH_DISTANCE: new slot
+  // dist ~0.72 > maxMatchDistance: new slot
   const far = updateHandTracker(s, [{ x: 0.6, y: 0.8 }], FRAME);
   assert.equal(far.length, 2);
   assert.equal(far[0].trail.length, 1);
   assert.equal(far[1].trail.length, 1);
   assert.equal(far[1].trail[0].x, 0.6);
+});
+
+// --- Player attribution (opt-in via tuning.midlineDeadzone) ---
+
+const ATTRIBUTION_TUNING = { ...DEFAULT_TRACKER_TUNING, midlineDeadzone: 0.05 };
+
+test("attribution off by default: player stays undefined regardless of side", () => {
+  const s = updateHandTracker(createHandTracker(), [{ x: 0.8, y: 0.5 }], 0);
+  assert.equal(s[0].player, undefined);
+});
+
+test("slot born right of midline (x=0.8) is assigned player 0", () => {
+  const s = updateHandTracker(createHandTracker(), [{ x: 0.8, y: 0.5 }], 0, ATTRIBUTION_TUNING);
+  assert.equal(s[0].player, 0);
+});
+
+test("slot born left of midline (x=0.2) is assigned player 1", () => {
+  const s = updateHandTracker(createHandTracker(), [{ x: 0.2, y: 0.5 }], 0, ATTRIBUTION_TUNING);
+  assert.equal(s[0].player, 1);
+});
+
+test("slot born inside the deadzone is unassigned, then assigned once a later detection clears it", () => {
+  // Small, constant-velocity steps so the slot stays matched via prediction
+  // throughout (this is testing attribution timing, not match tolerance).
+  let s = updateHandTracker(createHandTracker(), [{ x: 0.5, y: 0.5 }], 0, ATTRIBUTION_TUNING);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].player, undefined); // born dead-center, deferred
+
+  // Still inside the deadzone (|0.52-0.5| = 0.02 <= 0.05): stays unassigned.
+  s = updateHandTracker(s, [{ x: 0.52, y: 0.5 }], FRAME, ATTRIBUTION_TUNING);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].player, undefined);
+
+  // Still inside the deadzone (|0.54-0.5| = 0.04 <= 0.05): stays unassigned.
+  s = updateHandTracker(s, [{ x: 0.54, y: 0.5 }], FRAME * 2, ATTRIBUTION_TUNING);
+  assert.equal(s.length, 1);
+  assert.equal(s[0].player, undefined);
+
+  // Clears the deadzone to the right (|0.56-0.5| = 0.06 > 0.05, tracker
+  // x > 0.5 => player 0).
+  s = updateHandTracker(s, [{ x: 0.56, y: 0.5 }], FRAME * 3, ATTRIBUTION_TUNING);
+  assert.equal(s.length, 1); // same slot throughout, not re-birthed
+  assert.equal(s[0].player, 0);
+});
+
+test("owner is sticky across a fingertip path that later crosses the midline", () => {
+  // Small per-frame steps so each detection stays within matching range
+  // (this is testing sticky ownership, not the matcher's dropout tolerance).
+  let s = createHandTracker();
+  const xs = [0.8, 0.75, 0.7, 0.65, 0.6, 0.55, 0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2];
+  xs.forEach((x, i) => {
+    s = updateHandTracker(s, [{ x, y: 0.5 }], i * FRAME, ATTRIBUTION_TUNING);
+  });
+  assert.equal(s.length, 1); // same slot throughout, never re-birthed
+  // Born at x=0.8 (right side) => player 0; later crossing to the left must not flip it.
+  assert.equal(s[0].player, 0);
 });

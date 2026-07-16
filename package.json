@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test:fruit-ninja": "tsx --test games/fruit-ninja/*.test.ts",
+    "test:fruit-ninja": "tsx --test lib/fruit-ninja/*.test.ts",
     "deploy:party": "wrangler deploy"
   },
   "dependencies": {
