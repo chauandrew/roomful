@@ -1,19 +1,8 @@
 /**
- * Fruit Ninja — all tunable constants live here.
+ * Fruit Ninja — gameplay knobs live here. Engine tuning (hand-slot tracking)
+ * lives in lib/fruit-ninja/handTracker.ts as DEFAULT_TRACKER_TUNING.
  */
 export const CONFIG = {
-  // --- Hand slot tracking (see handTracker.ts) ---
-  MAX_MATCH_DISTANCE: 0.25, // fallback match radius (normalized 0-1) for slots with no velocity estimate yet
-  // (a fast swipe can cross ~1/4 of the frame during a short dropout; two
-  // players' hands are rarely that close, so this rarely mis-merges)
-  MAX_PREDICTION_ERROR: 0.1, // max distance from a slot's constant-velocity predicted position
-  // (measures how much the swipe curved/decelerated during the gap, not raw
-  // travel, so it can be much tighter than MAX_MATCH_DISTANCE)
-  VELOCITY_SMOOTHING: 0.5, // blend of newest frame-to-frame velocity into the running estimate (higher = more responsive, noisier)
-  DEAD_RECKON_MAX_DRIFT: 0.2, // cap on extrapolated ghost-dot travel mid-dropout so a noisy velocity estimate can't fling it off-screen
-  MAX_GAP_MS: 150, // how long a slot survives with no detection before retiring (~4-9 frames)
-  TRAIL_LENGTH: 8, // recent fingertip points kept per slot
-
   // --- Round ---
   ROUND_DURATION_MS: 45000,
   LIVES: 3, // shared between both players; a missed fruit costs one (a sliced bomb ends the round instantly, no lives involved)

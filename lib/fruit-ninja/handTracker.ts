@@ -4,42 +4,56 @@
  * MediaPipe's HandLandmarker gives no stable hand identity across frames, and
  * a fast swing can drop detections entirely for a frame or two mid-motion.
  * Each frame's detections are matched to slots seen recently enough
- * (MAX_GAP_MS). Each slot keeps a smoothed velocity estimate, and matching is
+ * (maxGapMs). Each slot keeps a smoothed velocity estimate, and matching is
  * done against the slot's *predicted* position (last point + velocity * gap):
  * a fast swipe travels real distance while undetected, so matching against
  * the stale last position would reject the reappearance and open a spurious
  * new slot (the "teleport"). Slots with no velocity yet fall back to plain
- * distance-to-last-point within MAX_MATCH_DISTANCE. No synthetic trail
+ * distance-to-last-point within maxMatchDistance. No synthetic trail
  * points are fabricated — the trail simply keeps
  * the real points on both sides of the gap, and the straight segment between
  * them is exactly what a segment-intersection slice check needs. Points that
  * follow a gap are marked `bridged` so a renderer can show where bridging
  * happened.
  */
-import { CONFIG } from "./config";
+import type { HandDetection, HandSlot } from "./types";
 
-export interface HandDetection {
-  x: number;
-  y: number;
-  handedness?: string;
+export type { HandDetection, HandSlot, TrailPoint } from "./types";
+
+/**
+ * Tuning for the hand tracker. Only `midlineDeadzone` is safe to override
+ * per-caller. The numeric engine constants below are ALSO read by
+ * `predictPosition` via `DEFAULT_TRACKER_TUNING` (which takes no tuning
+ * argument), so overriding e.g. `maxGapMs` or `deadReckonMaxDrift` here would
+ * make `predictPosition`'s dead-reckon bridge silently disagree with
+ * `updateHandTracker` and drop slices at the tail of a long dropout. If a game
+ * ever needs different numeric tuning, thread `tuning` through
+ * `predictPosition` (and its detector/draw callers) first.
+ */
+export interface TrackerTuning {
+  maxMatchDistance: number;
+  maxPredictionError: number;
+  velocitySmoothing: number;
+  deadReckonMaxDrift: number;
+  maxGapMs: number;
+  trailLength: number;
+  /** Present => enable sticky per-player attribution; half-width around
+   *  x=0.5 within which slot-birth assignment is deferred. */
+  midlineDeadzone?: number;
 }
 
-export interface TrailPoint {
-  x: number;
-  y: number;
-  t: number;
-  bridged: boolean; // this point followed one or more dropped frames on this slot
-}
-
-export interface HandSlot {
-  active: boolean;
-  trail: TrailPoint[];
-  lastSeen: number;
-  sawGap: boolean; // slot went unmatched since its last trail point
-  handedness?: string;
-  vx?: number; // smoothed velocity, normalized units per ms (undefined until 2 points)
-  vy?: number;
-}
+export const DEFAULT_TRACKER_TUNING: TrackerTuning = {
+  maxMatchDistance: 0.25, // fallback match radius (normalized 0-1) for slots with no velocity estimate yet
+  // (a fast swipe can cross ~1/4 of the frame during a short dropout; two
+  // players' hands are rarely that close, so this rarely mis-merges)
+  maxPredictionError: 0.1, // max distance from a slot's constant-velocity predicted position
+  // (measures how much the swipe curved/decelerated during the gap, not raw
+  // travel, so it can be much tighter than maxMatchDistance)
+  velocitySmoothing: 0.5, // blend of newest frame-to-frame velocity into the running estimate (higher = more responsive, noisier)
+  deadReckonMaxDrift: 0.2, // cap on extrapolated ghost-dot travel mid-dropout so a noisy velocity estimate can't fling it off-screen
+  maxGapMs: 150, // how long a slot survives with no detection before retiring (~4-9 frames)
+  trailLength: 8, // recent fingertip points kept per slot
+};
 
 export type HandTrackerState = HandSlot[];
 
@@ -53,26 +67,31 @@ export function createHandTracker(): HandTrackerState {
 }
 
 // Max extrapolation speed (units/ms): whatever caps total drift to
-// DEAD_RECKON_MAX_DRIFT over the full MAX_GAP_MS window. Capping the *speed*
-// (not the resulting displacement) keeps predictPosition strictly increasing
-// with atTime — clamping displacement per-call instead would make any two
-// calls past the saturation point collapse onto the identical clamped point,
-// producing a zero-length segment for the tail of a fast, long dropout and
-// silently killing slice detection right when it matters most.
-const MAX_DEAD_RECKON_SPEED = CONFIG.DEAD_RECKON_MAX_DRIFT / CONFIG.MAX_GAP_MS;
+// DEFAULT_TRACKER_TUNING.deadReckonMaxDrift over the full maxGapMs window.
+// Capping the *speed* (not the resulting displacement) keeps predictPosition
+// strictly increasing with atTime — clamping displacement per-call instead
+// would make any two calls past the saturation point collapse onto the
+// identical clamped point, producing a zero-length segment for the tail of a
+// fast, long dropout and silently killing slice detection right when it
+// matters most.
+const MAX_DEAD_RECKON_SPEED = DEFAULT_TRACKER_TUNING.deadReckonMaxDrift / DEFAULT_TRACKER_TUNING.maxGapMs;
 
 /**
  * Where the slot's fingertip is believed to be at `atTime`, dead-reckoned
  * from its last real point + smoothed velocity (speed-capped, see above).
  * This is what keeps a blade "live" mid-dropout: renderer and slice detector
  * follow this point instead of freezing at the stale last detection.
+ *
+ * deadReckon and maxGap are engine constants, identical for both games, so
+ * this always uses DEFAULT_TRACKER_TUNING rather than threading a tuning
+ * argument through every detector/draw caller.
  */
 export function predictPosition(slot: HandSlot, atTime: number): { x: number; y: number } | null {
   const last = slot.trail[slot.trail.length - 1];
   if (!last) return null;
   const { vx, vy } = slot;
   if (vx === undefined || vy === undefined) return { x: last.x, y: last.y };
-  const dt = Math.min(Math.max(0, atTime - last.t), CONFIG.MAX_GAP_MS);
+  const dt = Math.min(Math.max(0, atTime - last.t), DEFAULT_TRACKER_TUNING.maxGapMs);
   const speed = Math.hypot(vx, vy);
   const scale = speed > MAX_DEAD_RECKON_SPEED ? MAX_DEAD_RECKON_SPEED / speed : 1;
   const dx = vx * scale * dt;
@@ -83,17 +102,25 @@ export function predictPosition(slot: HandSlot, atTime: number): { x: number; y:
   };
 }
 
+// Tracker space is un-mirrored MediaPipe; the screen is mirrored, so tracker
+// x > 0.5 renders on the LEFT of the screen = Player 1 (index 0).
+function sideOf(x: number, deadzone: number): 0 | 1 | undefined {
+  if (Math.abs(x - 0.5) <= deadzone) return undefined;
+  return x > 0.5 ? 0 : 1;
+}
+
 export function updateHandTracker(
   state: HandTrackerState,
   detections: HandDetection[],
-  now: number
+  now: number,
+  tuning: TrackerTuning = DEFAULT_TRACKER_TUNING
 ): HandTrackerState {
   const slots = state.map((s) => ({ ...s, trail: s.trail.slice() }));
 
   // Greedy best-first matching between detections and recently-seen slots.
   const pairs: { score: number; det: number; slot: number }[] = [];
   slots.forEach((slot, si) => {
-    if (!slot.active || now - slot.lastSeen > CONFIG.MAX_GAP_MS) return;
+    if (!slot.active || now - slot.lastSeen > tuning.maxGapMs) return;
     const last = slot.trail[slot.trail.length - 1];
     if (!last) return;
     const { vx, vy } = slot;
@@ -101,7 +128,7 @@ export function updateHandTracker(
     const dt = now - slot.lastSeen;
     const predX = hasVel ? last.x + vx * dt : last.x;
     const predY = hasVel ? last.y + vy * dt : last.y;
-    const maxDist = hasVel ? CONFIG.MAX_PREDICTION_ERROR : CONFIG.MAX_MATCH_DISTANCE;
+    const maxDist = hasVel ? tuning.maxPredictionError : tuning.maxMatchDistance;
     detections.forEach((det, di) => {
       const dist = Math.hypot(det.x - predX, det.y - predY);
       if (dist > maxDist) return;
@@ -135,24 +162,31 @@ export function updateHandTracker(
     const det = detections[p.det];
     const last = slot.trail[slot.trail.length - 1];
     if (det.handedness) slot.handedness = det.handedness;
+    // Sticky attribution: once a slot has an owner it keeps it; while
+    // unassigned, try again each matched detection until the fingertip
+    // clears the deadzone. No-op when attribution isn't in use.
+    if (tuning.midlineDeadzone !== undefined && slot.player === undefined) {
+      const side = sideOf(det.x, tuning.midlineDeadzone);
+      if (side !== undefined) slot.player = side;
+    }
     // The hook re-delivers the previous result between video frames; skip
     // exact repeats so stale frames don't flush real history out of the trail
     // (and don't decay velocity — a repeat is stale data, not a stopped hand).
     // Crucially, lastSeen is NOT bumped here either: it must track the last
     // genuinely new detection, not the last matched callback, or a stalled
     // camera feed that keeps redelivering the same stale point would refresh
-    // lastSeen forever and the slot would never hit MAX_GAP_MS to retire.
+    // lastSeen forever and the slot would never hit maxGapMs to retire.
     if (last && last.x === det.x && last.y === det.y) continue;
     slot.lastSeen = now;
     if (last && now > last.t) {
       const dt = now - last.t;
       const ivx = (det.x - last.x) / dt;
       const ivy = (det.y - last.y) / dt;
-      slot.vx = slot.vx === undefined ? ivx : slot.vx + (ivx - slot.vx) * CONFIG.VELOCITY_SMOOTHING;
-      slot.vy = slot.vy === undefined ? ivy : slot.vy + (ivy - slot.vy) * CONFIG.VELOCITY_SMOOTHING;
+      slot.vx = slot.vx === undefined ? ivx : slot.vx + (ivx - slot.vx) * tuning.velocitySmoothing;
+      slot.vy = slot.vy === undefined ? ivy : slot.vy + (ivy - slot.vy) * tuning.velocitySmoothing;
     }
     slot.trail.push({ x: det.x, y: det.y, t: now, bridged: slot.sawGap });
-    if (slot.trail.length > CONFIG.TRAIL_LENGTH) slot.trail.shift();
+    if (slot.trail.length > tuning.trailLength) slot.trail.shift();
     slot.sawGap = false;
   }
 
@@ -168,7 +202,7 @@ export function updateHandTracker(
   // its index.
   slots.forEach((slot, si) => {
     if (!slot.active || matchedSlots.has(si)) return;
-    if (now - slot.lastSeen > CONFIG.MAX_GAP_MS) {
+    if (now - slot.lastSeen > tuning.maxGapMs) {
       const last = slot.trail[slot.trail.length - 1];
       slot.active = false;
       slot.trail = last ? [last] : [];
@@ -200,6 +234,7 @@ export function updateHandTracker(
       lastSeen: now,
       sawGap: false,
       handedness: det.handedness,
+      player: tuning.midlineDeadzone === undefined ? undefined : sideOf(det.x, tuning.midlineDeadzone),
     };
   });
 

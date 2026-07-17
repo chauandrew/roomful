@@ -18,18 +18,35 @@ import { useCountdown } from "@/lib/tracking/useCountdown";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame } from "@/lib/tracking/drawPose";
 import type { HandResult } from "@/lib/tracking/types";
+import { createHandTracker, updateHandTracker, type HandDetection, type HandSlot } from "@/lib/fruit-ninja/handTracker";
+import { createSpawnState, spawnDue, updateEntities, type Entity, type SpawnConfig } from "@/lib/fruit-ninja/physics";
+import { detectSlices, type ComboConfig } from "@/lib/fruit-ninja/detector";
+import { drawEntities, drawSplashes, drawHandTrails, type Splash } from "@/lib/fruit-ninja/draw";
 import { fruitNinjaMeta } from "./meta";
 import { CONFIG } from "./config";
-import { createHandTracker, updateHandTracker, type HandDetection } from "./handTracker";
-import { createSpawnState, spawnDue, updateEntities, type Entity } from "./physics";
-import { detectSlices } from "./detector";
-import { drawEntities, drawSplashes, drawHandTrails, drawHud, type Splash } from "./draw";
+import { drawHud, HAND_COLORS } from "./hud";
 import { unlockAudio, playSliceSound, playBombSound, playMissSound, playGameOverSound } from "./sound";
 import { getBest, setBest } from "./leaderboard";
 
 const INDEX_FINGERTIP = 8;
 
 type Stage = "IDLE" | "CAMERA_CHECK" | "COUNTDOWN" | "PLAYING" | "RESULTS";
+
+const SPAWN_CONFIG: SpawnConfig = {
+  roundDurationMs: CONFIG.ROUND_DURATION_MS,
+  intervalStartMs: CONFIG.SPAWN_INTERVAL_START_MS,
+  intervalEndMs: CONFIG.SPAWN_INTERVAL_END_MS,
+  launchSpeedStart: CONFIG.LAUNCH_SPEED_START,
+  launchSpeedEnd: CONFIG.LAUNCH_SPEED_END,
+  launchVxMax: CONFIG.LAUNCH_VX_MAX,
+  spawnXMargin: CONFIG.SPAWN_X_MARGIN,
+  bombProbability: CONFIG.BOMB_PROBABILITY,
+  fruitRadius: CONFIG.FRUIT_RADIUS,
+  bombRadius: CONFIG.BOMB_RADIUS,
+  fruitColors: CONFIG.FRUIT_COLORS,
+};
+const COMBO_CONFIG: ComboConfig = { enabled: CONFIG.COMBO_ENABLED, bonus: CONFIG.COMBO_BONUS };
+const colorForSlot = (_slot: HandSlot, i: number) => HAND_COLORS[i % HAND_COLORS.length];
 
 export default function Play() {
   const router = useRouter();
@@ -98,12 +115,12 @@ export default function Play() {
 
       if (stage === "CAMERA_CHECK") {
         setIsVisible(trackerRef.current.some((s) => s.active));
-        drawHandTrails(ctx, canvas, trackerRef.current, now);
+        drawHandTrails(ctx, canvas, trackerRef.current, now, colorForSlot);
         return;
       }
 
       if (stage === "COUNTDOWN") {
-        drawHandTrails(ctx, canvas, trackerRef.current, now);
+        drawHandTrails(ctx, canvas, trackerRef.current, now, colorForSlot);
         return;
       }
 
@@ -112,21 +129,23 @@ export default function Play() {
         lastFrameTRef.current = now;
         const elapsed = now - playStartRef.current;
 
-        const due = spawnDue(spawnRef.current, elapsed);
+        const due = spawnDue(spawnRef.current, elapsed, SPAWN_CONFIG);
         spawnRef.current = due.state;
-        const updated = updateEntities(entitiesRef.current.concat(due.spawned), now - sinceT);
+        const updated = updateEntities(entitiesRef.current.concat(due.spawned), now - sinceT, CONFIG.GRAVITY);
         let entities = updated.entities;
         if (updated.missedFruit.length > 0) {
           livesRef.current = Math.max(0, livesRef.current - updated.missedFruit.length);
           playMissSound();
         }
 
-        const slices = detectSlices(trackerRef.current, entities, now, sinceT, canvas.width / canvas.height);
-        if (slices.slicedFruit.length > 0) {
-          scoreRef.current += slices.slicedFruit.length * CONFIG.SCORE_PER_FRUIT + slices.comboBonus;
+        const slices = detectSlices(trackerRef.current, entities, now, sinceT, canvas.width / canvas.height, COMBO_CONFIG);
+        const fruitCount = slices.hits.reduce((sum, h) => sum + h.fruitCount, 0);
+        const comboBonus = slices.hits.reduce((sum, h) => sum + h.comboBonus, 0);
+        if (fruitCount > 0) {
+          scoreRef.current += fruitCount * CONFIG.SCORE_PER_FRUIT + comboBonus;
           playSliceSound();
         }
-        const bombHit = slices.slicedBombs.length > 0;
+        const bombHit = slices.hits.reduce((sum, h) => sum + h.bombCount, 0) > 0;
         if (bombHit) playBombSound();
         const cut = [...slices.slicedFruit, ...slices.slicedBombs];
         if (cut.length > 0) {
@@ -140,8 +159,8 @@ export default function Play() {
         splashesRef.current = splashesRef.current.filter((s) => now - s.t < CONFIG.SPLASH_MS);
 
         drawEntities(ctx, canvas, entities);
-        drawSplashes(ctx, canvas, splashesRef.current, now);
-        drawHandTrails(ctx, canvas, trackerRef.current, now);
+        drawSplashes(ctx, canvas, splashesRef.current, now, CONFIG.SPLASH_MS);
+        drawHandTrails(ctx, canvas, trackerRef.current, now, colorForSlot);
         drawHud(ctx, canvas, scoreRef.current, livesRef.current, Math.max(0, CONFIG.ROUND_DURATION_MS - elapsed));
 
         if (bombHit) endRound("bomb");
