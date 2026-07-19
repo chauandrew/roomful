@@ -39,6 +39,10 @@ export const gameComponents: Record<string, GameComponents> = {
     // which doesn't exist during server-side rendering.
     Play: dynamic(() => import("./fruit-ninja/Play"), { ssr: false }),
   },
+  "crossy-beach": {
+    HostView: dynamic(() => import("./crossy-beach/HostView")),
+    PlayerView: dynamic(() => import("./crossy-beach/PlayerView")),
+  },
   "fruit-ninja-duel": {
     // ssr:false required — useHandTracking touches navigator.mediaDevices,
     // which doesn't exist during server-side rendering.

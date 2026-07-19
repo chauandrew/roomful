@@ -11,6 +11,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:fruit-ninja": "tsx --test lib/fruit-ninja/*.test.ts",
+    "test:crossy-beach": "tsx --test games/crossy-beach/*.test.ts",
     "deploy:party": "wrangler deploy"
   },
   "dependencies": {
