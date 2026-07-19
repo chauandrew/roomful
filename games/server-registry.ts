@@ -13,6 +13,8 @@ import type { MultiUserGameLogic } from "./types";
 
 import { sketchChainMeta } from "./sketch-chain/meta";
 import { sketchChainLogic } from "./sketch-chain/server";
+import { crossyBeachMeta } from "./crossy-beach/meta";
+import { crossyBeachLogic } from "./crossy-beach/server";
 
 export interface ServerGame {
   meta: GameMeta;
@@ -22,4 +24,5 @@ export interface ServerGame {
 
 export const serverGames: Record<string, ServerGame> = {
   "sketch-chain": { meta: sketchChainMeta, logic: sketchChainLogic },
+  "crossy-beach": { meta: crossyBeachMeta, logic: crossyBeachLogic },
 };
