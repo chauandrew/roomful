@@ -396,15 +396,27 @@ export const crossyBeachLogic: MultiUserGameLogic<
 
     if (action.type === "play-again") {
       if (state.phase !== "won" && state.phase !== "gameover") return state;
+      // Retrying at the current level only makes sense after a loss (`won`
+      // already cleared every level); anything malformed/out-of-range falls
+      // back to a full restart.
+      const atLevel = action.atLevel;
+      const level =
+        state.phase === "gameover" &&
+        typeof atLevel === "number" &&
+        Number.isInteger(atLevel) &&
+        atLevel >= 0 &&
+        atLevel < LEVELS.length
+          ? atLevel
+          : 0;
       return {
         ...state,
         phase: "level-intro",
-        level: 0,
+        level,
         timeMs: 0,
         introUntilMs: LEVEL_INTRO_MS,
         timerEndsAtMs: 0,
         turtle: newTurtle(),
-        lanes: buildLanes(0),
+        lanes: buildLanes(level),
         birds: [],
         nextBirdAtMs: 0,
         lives: START_LIVES,
@@ -415,6 +427,13 @@ export const crossyBeachLogic: MultiUserGameLogic<
         seed: Math.floor(randAt(state.seed, state.rngCursor) * 4294967296) >>> 0,
         rngCursor: 0,
       };
+    }
+
+    // Dev-only: HostView doesn't render the button that sends this in
+    // production builds.
+    if (action.type === "skip-level") {
+      if (state.phase !== "running" && state.phase !== "level-intro") return state;
+      return levelComplete(clone(state));
     }
 
     return state;

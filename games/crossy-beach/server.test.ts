@@ -119,18 +119,20 @@ test("input during the respawn input lock is ignored", () => {
   assert.equal(hop(locked, players, "p0", "up"), locked);
 });
 
-test("cooldowns: shared turtle cooldown plus 300ms per-player cooldown", () => {
+test("cooldowns: shared turtle cooldown plus per-player cooldown", () => {
   const { state, players } = mkRunning(4);
   let s = hop(state, players, "p1", "left");
   assert.equal(s.turtle.x, CENTER - 1);
   assert.equal(hop(s, players, "p1", "left"), s); // same timeMs: both cooldowns block
   s = tick(s, players, TICK_MS); // past the shared cooldown (TICK_MS >= HOP_COOLDOWN_MS)…
   assert.ok(TICK_MS >= HOP_COOLDOWN_MS);
-  assert.equal(hop(s, players, "p1", "left"), s); // …but p1 is still inside their 300ms
+  assert.equal(hop(s, players, "p1", "left"), s); // …but p1 is still inside PLAYER_COOLDOWN_MS
   s = hop(s, players, "p2", "right"); // a teammate is NOT blocked by p1's cooldown
   assert.equal(s.turtle.x, CENTER);
-  s = tick(s, players, TICK_MS * 2); // p1 now past PLAYER_COOLDOWN_MS
-  assert.ok(TICK_MS * 3 >= PLAYER_COOLDOWN_MS);
+  s = tick(s, players, TICK_MS); // p1 now at 2*TICK_MS (250ms) elapsed since their hop
+  // 250ms clears the current 150ms cooldown but would still be blocked under the old
+  // 300ms value — pins the constant instead of just "eventually clears".
+  assert.ok(TICK_MS * 2 >= PLAYER_COOLDOWN_MS && TICK_MS * 2 < 300);
   s = hop(s, players, "p1", "left");
   assert.equal(s.turtle.x, CENTER - 1);
 });
@@ -302,6 +304,30 @@ test("reaching the top row advances the level, rotates controls, clears birds", 
   assert.deepEqual(next.controls, { up: ["p1"], left: ["p2"], right: ["p3"], down: ["p0"] });
 });
 
+test("skip-level (dev) advances exactly like reaching the goal row", () => {
+  const { state, players } = mkRunning(4);
+  const next = crossyBeachLogic.onHostAction(state, { type: "skip-level" }, players);
+  assert.equal(next.level, 1);
+  assert.equal(next.phase, "level-intro");
+  assert.deepEqual(next.birds, []);
+  assert.equal(next.turtle.row, 0);
+});
+
+test("skip-level on the last level wins the game", () => {
+  const { state, players } = mkRunning(2);
+  const s = { ...state, level: 3 };
+  const next = crossyBeachLogic.onHostAction(s, { type: "skip-level" }, players);
+  assert.equal(next.phase, "won");
+});
+
+test("skip-level is ignored on won/gameover", () => {
+  const { state, players } = mkRunning(2);
+  const won = { ...state, phase: "won" as const };
+  assert.equal(crossyBeachLogic.onHostAction(won, { type: "skip-level" }, players), won);
+  const gameover = { ...state, phase: "gameover" as const };
+  assert.equal(crossyBeachLogic.onHostAction(gameover, { type: "skip-level" }, players), gameover);
+});
+
 test("finishing the last level wins the game", () => {
   const { state, players } = mkRunning(2);
   const s = withTurtle({ ...state, level: 3 }, { row: 12 });
@@ -344,6 +370,46 @@ test("play-again resets to a playable level-0 state, keeping seats and controls"
 test("play-again is ignored mid-game", () => {
   const { state, players } = mkRunning(2);
   assert.equal(crossyBeachLogic.onHostAction(state, { type: "play-again" }, players), state);
+});
+
+test("play-again with atLevel restarts at that level after a loss", () => {
+  const { state, players } = mkRunning(2);
+  let s = withLane({ ...state, lives: 1 }, 2, lane("traffic", { entities: [CENTER] }));
+  s = withTurtle(s, { row: 2 });
+  s = tick(s, players, TICK_MS);
+  assert.equal(s.phase, "gameover");
+  const again = crossyBeachLogic.onHostAction(s, { type: "play-again", atLevel: 2 }, players);
+  assert.equal(again.phase, "level-intro");
+  assert.equal(again.level, 2);
+  assert.equal(again.lives, START_LIVES);
+  assert.equal(again.lanes.length, LEVELS[2].rows.length);
+  // Deterministically playable: intro elapses into "running" again.
+  const back = tick(again, players, LEVEL_INTRO_MS);
+  assert.equal(back.phase, "running");
+});
+
+test("play-again atLevel is ignored on a win (no current level to retry)", () => {
+  const { state, players } = mkRunning(2);
+  const s = withTurtle({ ...state, level: 3 }, { row: 12 });
+  const won = hop(s, players, "p0", "up");
+  assert.equal(won.phase, "won");
+  const again = crossyBeachLogic.onHostAction(won, { type: "play-again", atLevel: 3 }, players);
+  assert.equal(again.level, 0);
+});
+
+test("play-again atLevel out of range falls back to level 0", () => {
+  const { state, players } = mkRunning(2);
+  let s = withLane({ ...state, lives: 1 }, 2, lane("traffic", { entities: [CENTER] }));
+  s = withTurtle(s, { row: 2 });
+  s = tick(s, players, TICK_MS);
+  assert.equal(s.phase, "gameover");
+  // The top of the valid range is still honored (only anything past it falls back).
+  const atMax = crossyBeachLogic.onHostAction(s, { type: "play-again", atLevel: LEVELS.length - 1 }, players);
+  assert.equal(atMax.level, LEVELS.length - 1);
+  for (const bad of [-1, 4, 1.5, NaN, "2", null] as unknown as number[]) {
+    const again = crossyBeachLogic.onHostAction(s, { type: "play-again", atLevel: bad }, players);
+    assert.equal(again.level, 0, `atLevel=${String(bad)} must fall back to level 0`);
+  }
 });
 
 // ── disconnect safety ───────────────────────────────────────────────────────

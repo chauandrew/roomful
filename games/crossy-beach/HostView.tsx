@@ -204,13 +204,30 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
         <ControlBar>
           <BarButton onClick={() => sendHostAction({ kind: "end" })}>End game</BarButton>
           <BarButton onClick={() => sendHostAction({ kind: "restart" })}>Back to lobby</BarButton>
-          <BarButton primary onClick={() => sendGameAction({ type: "play-again" })}>
-            Play again
+          {g.phase === "gameover" && (
+            <BarButton onClick={() => sendGameAction({ type: "play-again" })}>
+              Restart from Level 1
+            </BarButton>
+          )}
+          <BarButton
+            primary
+            onClick={() =>
+              sendGameAction(
+                g.phase === "gameover" ? { type: "play-again", atLevel: g.level } : { type: "play-again" }
+              )
+            }
+          >
+            {g.phase === "gameover" ? `Retry Level ${g.level + 1}` : "Play again"}
           </BarButton>
         </ControlBar>
       ) : (
         <ControlBar>
           <BarButton onClick={() => sendHostAction({ kind: "end" })}>End</BarButton>
+          {process.env.NODE_ENV !== "production" && (
+            <BarButton onClick={() => sendGameAction({ type: "skip-level" })}>
+              Skip level (dev)
+            </BarButton>
+          )}
         </ControlBar>
       )}
     </div>

@@ -18,7 +18,7 @@ export const MAX_DT_MS = 250;
 /** Shared per-turtle hop cooldown, so one button-masher can't teleport it. */
 export const HOP_COOLDOWN_MS = 120;
 /** Per-PLAYER cooldown between presses — curbs spamming without blocking teammates. */
-export const PLAYER_COOLDOWN_MS = 300;
+export const PLAYER_COOLDOWN_MS = 150;
 export const RESPAWN_INVULN_MS = 1500;
 /** Inputs are ignored this long after a respawn so panic taps don't re-kill. */
 export const RESPAWN_INPUT_LOCK_MS = 400;
@@ -150,7 +150,7 @@ export const LEVELS: LevelConfig[] = [
     name: "The Tide Pools",
     tagline: "Ride the kelp — open water sweeps you away!",
     timerMs: 180_000,
-    birds: { emoji: "🐦", intervalMs: 10_000, telegraphMs: 2000, width: 1 },
+    birds: { emoji: "🐦", intervalMs: 10_000, telegraphMs: 4000, width: 1 },
     rows: [
       safe(),
       traffic("🐚", 1.2, 1, 3),
@@ -178,11 +178,11 @@ export const LEVELS: LevelConfig[] = [
       wave(0),
       wave(1.3),
       safe(),
-      water("🫧", 1.6, 1, 3, 3),
+      water("🌿", 1.6, 1, 3, 3),
       wave(2.0),
       safe(),
       wave(0.7),
-      water("🫧", 1.8, -1, 3, 3),
+      water("🌿", 1.8, -1, 3, 3),
       wave(2.7),
       safe(),
       wave(1.6),
@@ -196,7 +196,8 @@ export const LEVELS: LevelConfig[] = [
 
 export type CrossyBeachHostAction =
   | { type: "tick"; dtMs: number }
-  | { type: "play-again" };
+  | { type: "play-again"; atLevel?: number }
+  | { type: "skip-level" };
 
 export type CrossyBeachInput = { dir: Dir };
 

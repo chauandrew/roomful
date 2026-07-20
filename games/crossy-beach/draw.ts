@@ -24,7 +24,6 @@ const SAND_A = "#f2dfae";
 const SAND_B = "#ecd598";
 const TRAFFIC_SAND = "#e3c987";
 const WATER_BLUE = "#3399cc";
-const WET_SAND = "#c2ab77";
 const WET_RIPPLE = "#b39a5f";
 const FLOOD_BLUE = "#227aa8";
 const FOAM = "#eaf6fb";
@@ -81,9 +80,9 @@ function drawLaneBackground(
       ctx.fillStyle = WATER_BLUE;
       break;
     case "wave":
-      // Safe state is exposed WET SAND (clearly standable); the flood paints
-      // water over it. Blue backgrounds are reserved for actual water.
-      ctx.fillStyle = WET_SAND;
+      // Safe state reads as regular sand (clearly standable); the flood
+      // paints water over it. Blue backgrounds are reserved for actual water.
+      ctx.fillStyle = row % 2 === 0 ? SAND_A : SAND_B;
       break;
   }
   ctx.fillRect(0, y, w, cellH);
