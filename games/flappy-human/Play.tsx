@@ -26,14 +26,8 @@ import { CONFIG } from "./config";
 import { FlapDetector, isBodyVisible } from "./detector";
 import { initState, step, type Pipe } from "./physics";
 import { drawScene, loadBirdSprites, type BirdSprites } from "./draw";
-import {
-  unlockAudio,
-  playFlapSound,
-  playScoreSound,
-  playCrashSound,
-  createBackgroundMusic,
-  type BackgroundMusic,
-} from "./sound";
+import { unlockAudio, playFlapSound, playScoreSound, playCrashSound } from "./sound";
+import { playBgm, stopBgm } from "@/lib/audio";
 import { getBest, setBest, getTopScores, submitScore, type LeaderboardEntry } from "./leaderboard";
 import { FlapRecorder } from "./recorder";
 
@@ -62,7 +56,6 @@ export default function Play() {
 
   const [best, setBestDisplay] = useState(() => getBest());
   const [isVisible, setIsVisible] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
 
   const [finalScore, setFinalScore] = useState(0);
   const [isNewBest, setIsNewBest] = useState(false);
@@ -74,8 +67,6 @@ export default function Play() {
 
   const detectorRef = useRef<FlapDetector | null>(null);
   if (detectorRef.current === null) detectorRef.current = new FlapDetector();
-  const musicRef = useRef<BackgroundMusic | null>(null);
-  if (musicRef.current === null) musicRef.current = createBackgroundMusic();
   const spritesRef = useRef<BirdSprites | null>(null);
   if (spritesRef.current === null) spritesRef.current = loadBirdSprites();
   const recorderRef = useRef<FlapRecorder | null>(null);
@@ -163,7 +154,7 @@ export default function Play() {
     lastLandmarksRef.current = undefined;
     pendingDetectorDtRef.current = 0;
     recorderRef.current!.start();
-    musicRef.current?.play();
+    void playBgm("/audio/flappy-human.ogg");
     setStage("PLAYING");
   }, [resetGameState]);
 
@@ -265,11 +256,11 @@ export default function Play() {
       gameStateRef.current = next;
 
       const wasAlive = prev.status !== "dead";
-      if (wasAlive && flapped && !isMuted) playFlapSound();
-      if (next.score > prev.score && !isMuted) playScoreSound();
+      if (wasAlive && flapped) playFlapSound();
+      if (next.score > prev.score) playScoreSound();
       if (wasAlive && next.status === "dead") {
-        if (!isMuted) playCrashSound();
-        musicRef.current?.stop();
+        playCrashSound();
+        stopBgm();
         recorderRef.current!.stop();
         setRecordingSampleCount(recorderRef.current!.sampleCount);
         void endGame(next.score);
@@ -283,7 +274,7 @@ export default function Play() {
         drawScene(main.ctx, main.canvas.width, main.canvas.height, next, spritesRef.current!);
       }
     },
-    [stage, isMuted, endGame, videoRef, canvasRef, startCountdown]
+    [stage, endGame, videoRef, canvasRef, startCountdown]
   );
 
   useEffect(() => {
@@ -295,23 +286,12 @@ export default function Play() {
     setStage("CAMERA_CHECK");
   }
 
-  // Unlocks both the SFX AudioContext and the background-music <audio>
-  // element via this click's user gesture (play() immediately followed by
-  // stop() so nothing audibly starts yet) — the music itself starts later,
-  // in beginPlay, once countdown finishes, no second gesture needed.
+  // Unlocks the shared AudioContext via this click's user gesture — the
+  // music itself starts later, in beginPlay, once countdown finishes, no
+  // second gesture needed.
   function handleStartClick() {
     unlockAudio();
-    musicRef.current!.play();
-    musicRef.current!.stop();
     enterCameraCheck();
-  }
-
-  function toggleMute() {
-    setIsMuted((m) => {
-      const next = !m;
-      musicRef.current?.setMuted(next);
-      return next;
-    });
   }
 
   // Aborts the current run (camera check, countdown, or mid-game) back to
@@ -319,7 +299,7 @@ export default function Play() {
   function exitToIdle() {
     countdown.cancel();
     resetGameState();
-    musicRef.current?.stop();
+    stopBgm();
     recorderRef.current!.stop();
     cameraCheckStableSinceRef.current = null;
     setIsVisible(false);
@@ -452,16 +432,6 @@ export default function Play() {
             </button>
           )}
         </div>
-      )}
-
-      {showCameraChrome && (
-        <button
-          onClick={toggleMute}
-          aria-label={isMuted ? "Unmute" : "Mute"}
-          className="fixed left-5 top-5 z-10 flex h-11 w-11 items-center justify-center rounded-full border-2 border-white/40 bg-zinc-950/60 text-lg text-white"
-        >
-          {isMuted ? "🔇" : "🔊"}
-        </button>
       )}
 
       {showCameraChrome && (
