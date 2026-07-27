@@ -12,6 +12,8 @@
     "typecheck": "tsc --noEmit",
     "test:fruit-ninja": "tsx --test lib/fruit-ninja/*.test.ts",
     "test:crossy-beach": "tsx --test games/crossy-beach/*.test.ts",
+    "test:flappy-human": "tsx --test games/flappy-human/*.test.ts",
+    "replay:flappy-human": "tsx games/flappy-human/replay-recording.ts",
     "deploy:party": "wrangler deploy"
   },
   "dependencies": {

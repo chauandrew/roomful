@@ -20,8 +20,17 @@ import { chompChompMeta } from "./chomp-chomp/meta";
 import { fruitNinjaMeta } from "./fruit-ninja/meta";
 import { fruitNinjaDuelMeta } from "./fruit-ninja-duel/meta";
 import { crossyBeachMeta } from "./crossy-beach/meta";
+import { flappyHumanMeta } from "./flappy-human/meta";
 
-export const games: GameMeta[] = [sketchChainMeta, flossRushMeta, chompChompMeta, fruitNinjaMeta, fruitNinjaDuelMeta, crossyBeachMeta];
+export const games: GameMeta[] = [
+  sketchChainMeta,
+  flossRushMeta,
+  chompChompMeta,
+  fruitNinjaMeta,
+  fruitNinjaDuelMeta,
+  crossyBeachMeta,
+  flappyHumanMeta,
+];
 
 export function getGameMeta(id: string): GameMeta | undefined {
   return games.find((g) => g.id === id);
