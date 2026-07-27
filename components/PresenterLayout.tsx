@@ -5,6 +5,7 @@
  * and a small control bar that stays out of the way of the projection.
  */
 import type { CSSProperties, ReactNode } from "react";
+import { SoundToggle } from "./SoundToggle";
 
 export function PresenterLayout({
   accent,
@@ -28,6 +29,7 @@ export function PresenterLayout({
       {corner && (
         <div className="absolute right-6 top-5 text-right">{corner}</div>
       )}
+      <SoundToggle />
     </div>
   );
 }

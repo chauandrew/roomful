@@ -18,6 +18,7 @@ import { flossRushMeta } from "./meta";
 import { CONFIG } from "./config";
 import { FlossDetector, isBodyVisible } from "./detector";
 import { getBest, setBest, getTopScores, submitScore, type LeaderboardEntry } from "./leaderboard";
+import { unlockAudio, playBgm, stopBgm } from "@/lib/audio";
 
 type Stage = "IDLE" | "CAMERA_CHECK" | "COUNTDOWN" | "PLAYING" | "RESULTS";
 
@@ -127,6 +128,30 @@ export default function Play() {
     handleResultRef.current = handleResult;
   }, [handleResult]);
 
+  // Attempt music from the very first render, not just once the player clicks
+  // Start — browsers only make it audible after a real gesture, so this pairs
+  // with the pointerdown/keydown fallback below to unlock on whatever gesture
+  // happens first, not specifically the Start button.
+  useEffect(() => {
+    unlockAudio();
+    const unlock = () => unlockAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (stage === "RESULTS") {
+      stopBgm();
+    } else {
+      void playBgm("/audio/floss-rush.ogg");
+    }
+    return () => stopBgm();
+  }, [stage]);
+
   // Climbs the displayed score up to the real total 1 point at a time, rather
   // than jumping straight to it — scoreRef.current (the real total driving
   // endGame/leaderboard/best) is unaffected either way.
@@ -157,6 +182,7 @@ export default function Play() {
   });
 
   function enterCameraCheck() {
+    unlockAudio();
     setStage("CAMERA_CHECK");
   }
 

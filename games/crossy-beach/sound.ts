@@ -1,49 +1,11 @@
 /**
- * Crossy Beach — short synthesized cues via the Web Audio API, one per
- * SoundKind the server can trigger. No audio assets needed.
+ * Crossy Beach — short synthesized cues via the shared Web Audio bus, one
+ * per SoundKind the server can trigger. No audio assets needed.
  * Browsers only allow audio to start from a real user gesture, so
  * `unlockAudio()` must be called from a click/keypress before cues play.
  */
-let ctx: AudioContext | null = null;
-
-function getContext(): AudioContext {
-  if (!ctx) ctx = new AudioContext();
-  return ctx;
-}
-
-/** Call from a user-gesture handler to unlock playback for the rest of the page. */
-export function unlockAudio() {
-  const audioCtx = getContext();
-  if (audioCtx.state === "suspended") audioCtx.resume();
-}
-
-function playBlip(opts: {
-  type: OscillatorType;
-  freqStart: number;
-  freqEnd: number;
-  duration: number;
-  gain: number;
-  /** Seconds from now before the blip starts (for little arpeggios). */
-  delay?: number;
-}) {
-  const audioCtx = getContext();
-  const start = audioCtx.currentTime + (opts.delay ?? 0);
-
-  const osc = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  osc.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-
-  osc.type = opts.type;
-  osc.frequency.setValueAtTime(opts.freqStart, start);
-  osc.frequency.exponentialRampToValueAtTime(opts.freqEnd, start + opts.duration);
-
-  gainNode.gain.setValueAtTime(opts.gain, start);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, start + opts.duration);
-
-  osc.start(start);
-  osc.stop(start + opts.duration);
-}
+export { unlockAudio } from "@/lib/audio";
+import { playBlip } from "@/lib/audio";
 
 /** Every turtle hop: a tiny bright pop. */
 export function playHop() {

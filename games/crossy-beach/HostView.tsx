@@ -12,6 +12,7 @@ import type { HostViewProps } from "@/games/clientTypes";
 import { COLS, ROWS, TICK_MS } from "./config";
 import type { Dir, HostViewData, SoundKind } from "./config";
 import { drawBoard } from "./draw";
+import { playBgm, stopBgm } from "@/lib/audio";
 import {
   unlockAudio,
   playHop,
@@ -121,6 +122,14 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
     };
   }, []);
 
+  // HostView is only mounted while the room's phase is "playing", so mount/
+  // unmount brackets the whole game — start the loop here and stop it on the
+  // way out.
+  useEffect(() => {
+    void playBgm("/audio/crossy-beach.ogg");
+    return () => stopBgm();
+  }, []);
+
   return (
     <div className="flex h-full w-full flex-col items-center gap-3">
       {/* HUD header: level, lives, tide timer */}
@@ -202,8 +211,8 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
 
       {g.phase === "won" || g.phase === "gameover" ? (
         <ControlBar>
-          <BarButton onClick={() => sendHostAction({ kind: "end" })}>End game</BarButton>
-          <BarButton onClick={() => sendHostAction({ kind: "restart" })}>Back to lobby</BarButton>
+          <BarButton onClick={() => { stopBgm(); sendHostAction({ kind: "end" }); }}>End game</BarButton>
+          <BarButton onClick={() => { stopBgm(); sendHostAction({ kind: "restart" }); }}>Back to lobby</BarButton>
           {g.phase === "gameover" && (
             <BarButton onClick={() => sendGameAction({ type: "play-again" })}>
               Restart from Level 1
@@ -222,7 +231,7 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
         </ControlBar>
       ) : (
         <ControlBar>
-          <BarButton onClick={() => sendHostAction({ kind: "end" })}>End</BarButton>
+          <BarButton onClick={() => { stopBgm(); sendHostAction({ kind: "end" }); }}>End</BarButton>
           {process.env.NODE_ENV !== "production" && (
             <BarButton onClick={() => sendGameAction({ type: "skip-level" })}>
               Skip level (dev)
