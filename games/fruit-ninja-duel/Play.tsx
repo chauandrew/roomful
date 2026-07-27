@@ -28,6 +28,7 @@ import { fruitNinjaDuelMeta } from "./meta";
 import { CONFIG } from "./config";
 import { drawHud, drawDivider, colorForSlot } from "./hud";
 import { unlockAudio, playSliceSound, playBombSound, playGameOverSound } from "./sound";
+import { playBgm, stopBgm } from "@/lib/audio";
 
 const INDEX_FINGERTIP = 8;
 
@@ -163,6 +164,30 @@ export default function Play() {
   useEffect(() => {
     handleResultRef.current = handleResult;
   }, [handleResult]);
+
+  // Attempt music from the very first render, not just once a player clicks
+  // Start — browsers only make it audible after a real gesture, so this pairs
+  // with the pointerdown/keydown fallback below to unlock on whatever gesture
+  // happens first, not specifically the Start button.
+  useEffect(() => {
+    unlockAudio();
+    const unlock = () => unlockAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (stage === "RESULTS") {
+      stopBgm();
+    } else {
+      void playBgm("/audio/fruit-ninja.ogg");
+    }
+    return () => stopBgm();
+  }, [stage]);
 
   const beginPlay = useCallback(() => {
     spawnRef.current = createSpawnState();

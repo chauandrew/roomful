@@ -4,8 +4,10 @@
  * who's still scribbling; during "reveal" the host steps through each chain
  * entry by entry.
  */
+import { useEffect } from "react";
 import { BarButton, ControlBar } from "@/components/PresenterLayout";
 import type { HostViewProps } from "@/games/clientTypes";
+import { unlockAudio, playBgm, stopBgm } from "@/lib/audio";
 
 type SCHostViewData =
   | {
@@ -36,6 +38,29 @@ const TASK_LABEL = {
 export default function HostView({ view, sendGameAction, sendHostAction }: HostViewProps) {
   const g = view.game as SCHostViewData;
 
+  // The host may not click anything on this screen (just watching players
+  // draw on their phones), so the mount-time call may fire before any prior
+  // gesture unlocked the browser's audio policy — the gesture listeners
+  // cover that case.
+  useEffect(() => {
+    unlockAudio();
+    const unlock = () => unlockAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  // HostView is only mounted while sketch-chain is being played, so mount/
+  // unmount brackets the whole game — start the loop here and stop it on the
+  // way out.
+  useEffect(() => {
+    void playBgm("/audio/sketch-chain.ogg");
+    return () => stopBgm();
+  }, []);
+
   if (g.phase === "working") {
     return (
       <div className="flex w-full flex-col items-center text-center">
@@ -56,7 +81,7 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
           </p>
         )}
         <ControlBar>
-          <BarButton onClick={() => sendHostAction({ kind: "end" })}>End</BarButton>
+          <BarButton onClick={() => { stopBgm(); sendHostAction({ kind: "end" }); }}>End</BarButton>
           <BarButton onClick={() => sendGameAction({ type: "force-advance" })}>
             Skip stragglers
           </BarButton>
@@ -70,10 +95,10 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
       <div className="text-center">
         <p className="text-7xl font-black text-[var(--accent)]">That&apos;s every chain!</p>
         <ControlBar>
-          <BarButton onClick={() => sendHostAction({ kind: "restart" })}>
+          <BarButton onClick={() => { stopBgm(); sendHostAction({ kind: "restart" }); }}>
             Back to lobby
           </BarButton>
-          <BarButton primary onClick={() => sendHostAction({ kind: "end" })}>
+          <BarButton primary onClick={() => { stopBgm(); sendHostAction({ kind: "end" }); }}>
             End game
           </BarButton>
         </ControlBar>
@@ -112,7 +137,7 @@ export default function HostView({ view, sendGameAction, sendHostAction }: HostV
         ))}
       </div>
       <ControlBar>
-        <BarButton onClick={() => sendHostAction({ kind: "end" })}>End</BarButton>
+        <BarButton onClick={() => { stopBgm(); sendHostAction({ kind: "end" }); }}>End</BarButton>
         <BarButton primary onClick={() => sendGameAction({ type: "advance-reveal" })}>
           {g.chainComplete ? "Next chain" : "Reveal next"}
         </BarButton>

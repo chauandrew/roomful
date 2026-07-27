@@ -1,46 +1,11 @@
 /**
- * A short synthesized "chomp" blip via the Web Audio API — no audio assets
- * needed. Browsers only allow audio to start from a real user gesture, so
- * `unlockAudio()` must be called from a click handler before any round plays.
+ * A short synthesized "chomp" blip via the shared Web Audio bus — no audio
+ * assets needed. Browsers only allow audio to start from a real user
+ * gesture, so `unlockAudio()` must be called from a click handler before
+ * any round plays.
  */
-let ctx: AudioContext | null = null;
-
-function getContext(): AudioContext {
-  if (!ctx) ctx = new AudioContext();
-  return ctx;
-}
-
-/** Call from a button's onClick to unlock playback for the rest of the page. */
-export function unlockAudio() {
-  const audioCtx = getContext();
-  if (audioCtx.state === "suspended") audioCtx.resume();
-}
-
-function playBlip(opts: {
-  type: OscillatorType;
-  freqStart: number;
-  freqEnd: number;
-  duration: number;
-  gain: number;
-}) {
-  const audioCtx = getContext();
-  const now = audioCtx.currentTime;
-
-  const osc = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
-  osc.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
-
-  osc.type = opts.type;
-  osc.frequency.setValueAtTime(opts.freqStart, now);
-  osc.frequency.exponentialRampToValueAtTime(opts.freqEnd, now + opts.duration);
-
-  gainNode.gain.setValueAtTime(opts.gain, now);
-  gainNode.gain.exponentialRampToValueAtTime(0.001, now + opts.duration);
-
-  osc.start(now);
-  osc.stop(now + opts.duration);
-}
+export { unlockAudio } from "@/lib/audio";
+import { playBlip } from "@/lib/audio";
 
 /** Plays once per dot eaten: a quick descending square-wave blip. */
 export function playChompSound() {

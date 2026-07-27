@@ -24,6 +24,7 @@ import { CONFIG } from "./config";
 import { NOSE_TIP, isFaceVisible, generateDots, computeOpenThreshold, wedgeHalfAngleRad, tryEatDots } from "./logic";
 import { drawDots, drawWedge } from "./draw";
 import { unlockAudio, playChompSound, playMouthOpenSound, playMouthCloseSound } from "./sound";
+import { playBgm, stopBgm } from "@/lib/audio";
 import type { Dot } from "./logic";
 
 type Stage =
@@ -173,6 +174,30 @@ export default function Play() {
   useEffect(() => {
     handleResultRef.current = handleResult;
   }, [handleResult]);
+
+  // Attempt music from the very first render, not just once the player clicks
+  // Start — browsers only make it audible after a real gesture, so this pairs
+  // with the pointerdown/keydown fallback below to unlock on whatever gesture
+  // happens first, not specifically the Start button.
+  useEffect(() => {
+    unlockAudio();
+    const unlock = () => unlockAudio();
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (stage === "RESULTS") {
+      stopBgm();
+    } else {
+      void playBgm("/audio/chomp-chomp.ogg");
+    }
+    return () => stopBgm();
+  }, [stage]);
 
   const beginPlay = useCallback(() => {
     const canvas = canvasRef.current;
