@@ -323,7 +323,7 @@ export default function Play() {
       <canvas ref={mainCanvasRef} className="fixed inset-0 -z-10 h-full w-full bg-black" />
       <canvas
         ref={canvasRef}
-        className="fixed bottom-5 right-5 z-10 rounded-lg border-2 border-white/40 shadow-lg"
+        className="fixed bottom-5 right-5 z-10 rounded-lg border-2 border-white/40 opacity-85 shadow-lg"
         style={{ width: CONFIG.CAMERA_PIP_WIDTH, height: CONFIG.CAMERA_PIP_HEIGHT }}
       />
 
