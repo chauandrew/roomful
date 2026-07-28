@@ -10,13 +10,14 @@
  * cellW/cellH from COLS/ROWS.
  *
  * The camera preview-in-corner is a second small <canvas> that Play.tsx
- * feeds directly via drawMirroredVideoFrame (lib/tracking/drawPose.ts) —
- * that helper already does exactly what's needed, so there's no wrapper
- * for it here.
+ * feeds via drawMirroredVideoFrame (lib/tracking/drawPose.ts), then overlays
+ * with drawFlapSkeleton below.
  */
 import { CONFIG } from "./config";
 import { clamp } from "./math";
+import { IDX } from "./detector";
 import type { Pipe, GameState } from "./physics";
+import type { Landmark } from "@/lib/tracking/types";
 
 export interface BirdSprites {
   up: HTMLImageElement;
@@ -195,4 +196,45 @@ function drawScore(ctx: CanvasRenderingContext2D, w: number, score: number) {
   ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
   ctx.shadowOffsetY = 0;
+}
+
+/**
+ * Overlay showing only the landmarks FlapDetector reads (shoulders + wrists),
+ * so players can see exactly what motion counts as a flap — a full-body
+ * skeleton (as in floss-rush) would show plenty of points that have no
+ * bearing on detection here. Mirrored the same way drawMirroredVideoFrame
+ * mirrors the video, so it stays aligned with the PIP feed underneath.
+ */
+export function drawFlapSkeleton(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, landmarks: Landmark[]) {
+  const lSh = landmarks[IDX.L_SHOULDER];
+  const rSh = landmarks[IDX.R_SHOULDER];
+  const lWr = landmarks[IDX.L_WRIST];
+  const rWr = landmarks[IDX.R_WRIST];
+  if (!lSh || !rSh || !lWr || !rWr) return;
+
+  ctx.save();
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+
+  ctx.lineWidth = Math.max(2, canvas.width / 160);
+  ctx.strokeStyle = "rgba(80, 220, 255, 0.85)";
+  for (const [a, b] of [
+    [lSh, lWr],
+    [rSh, rWr],
+  ]) {
+    ctx.beginPath();
+    ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
+    ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+  const r = Math.max(3, canvas.width / 90);
+  for (const p of [lSh, rSh, lWr, rWr]) {
+    ctx.beginPath();
+    ctx.arc(p.x * canvas.width, p.y * canvas.height, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
