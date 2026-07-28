@@ -44,5 +44,8 @@ next-env.d.ts
 .wrangler/
 .partykit/
 
+# personal per-machine dev launch scripts
+.claude/dev.sh
+
 # keep the env template
 !.env.example

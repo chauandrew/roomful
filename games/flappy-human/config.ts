@@ -23,7 +23,7 @@ export const CONFIG = {
   FLAP_SETTLE_FRACTION: 0.4, // swing is "done" once velocity drops back below FLAP_START_VELOCITY * this fraction
   FLAP_SETTLE_MS: 50, // consecutive low-velocity time required before a swing counts as settled (rejects one noisy dip mid-swing)
   FLAP_COOLDOWN_MS: 250, // refractory period after a fired flap before a new swing can start
-  FLAP_MIN_TRAVEL: 0.05, // minimum net downward travel (shoulder-widths) over the swing to count as a real flap
+  FLAP_MIN_TRAVEL: 0.12, // minimum net downward travel (shoulder-widths) over the swing to count as a real flap, clearing typical landmark jitter
   FLAP_MAX_SWING_MS: 1500, // safety cap so a slow continuous drift can't get stuck mid-swing forever
 
   // --- Logical game space (canvas is scaled to this at draw time) ---

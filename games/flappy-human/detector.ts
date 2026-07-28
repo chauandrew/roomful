@@ -29,9 +29,11 @@
  *     mid-swing would otherwise read as "the swing is done" while the arm is
  *     still actively moving). A slow continuous drift that never settles
  *     times out after FLAP_MAX_SWING_MS and fires nothing.
- *   - cooldown: refractory period after a fired flap, so the tail end of a
- *     real downswing (still noisily settling out) can't start a second swing
- *     and fire again before the arm has actually stopped.
+ *   - cooldown: refractory period after a fired flap. Leaving cooldown
+ *     requires both the timer to elapse AND velocity back at/below
+ *     FLAP_START_VELOCITY, so the tail end of a real downswing (still
+ *     noisily settling out) can't start a second swing and fire again
+ *     before the arm has actually stopped.
  *
  * A completed swing only counts as a flap if its total travel clears
  * FLAP_MIN_TRAVEL (real motion, not jitter) and both wrists individually
@@ -179,7 +181,7 @@ export class FlapDetector {
 
     if (this.phase === "cooldown") {
       this.cooldownMs -= dtMs;
-      if (this.cooldownMs <= 0) this.phase = "idle";
+      if (this.cooldownMs <= 0 && armVel <= CONFIG.FLAP_START_VELOCITY) this.phase = "idle";
     } else if (this.phase === "idle" || this.phase === "pendingStart") {
       const aboveStart = armVel > CONFIG.FLAP_START_VELOCITY;
       const held = this.startHold.tick(aboveStart, dtMs);
