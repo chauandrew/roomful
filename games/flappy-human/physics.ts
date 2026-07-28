@@ -131,12 +131,18 @@ export function step(state: GameState, dtMs: number, flapped: boolean): GameStat
     return p;
   });
 
-  const outOfBounds = birdY - BIRD_RADIUS < 0 || birdY + BIRD_RADIUS > GAME_H;
+  const hitFloor = birdY + BIRD_RADIUS > GAME_H;
   const collided = pipes.some((p) => pipeCollides(birdY, p, gapHeight));
 
-  if (outOfBounds || collided) {
+  if (hitFloor || collided) {
     return { status: "dead", birdY, birdVy, pipes, score, elapsedMs, gapHeight };
   }
 
-  return { status: "flying", birdY, birdVy, pipes, score, elapsedMs, gapHeight };
+  // The ceiling is solid but non-lethal: the bird bumps it and gravity pulls it back
+  // down, unlike the floor or a pipe, which both still end the run.
+  const hitCeiling = birdY - BIRD_RADIUS < 0;
+  const clampedBirdY = hitCeiling ? BIRD_RADIUS : birdY;
+  const clampedBirdVy = hitCeiling ? 0 : birdVy;
+
+  return { status: "flying", birdY: clampedBirdY, birdVy: clampedBirdVy, pipes, score, elapsedMs, gapHeight };
 }

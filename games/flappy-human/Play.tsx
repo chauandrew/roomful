@@ -25,7 +25,7 @@ import { flappyHumanMeta } from "./meta";
 import { CONFIG } from "./config";
 import { FlapDetector, isBodyVisible } from "./detector";
 import { initState, step, type Pipe } from "./physics";
-import { drawScene, loadBirdSprites, type BirdSprites } from "./draw";
+import { drawScene, drawFlapSkeleton, loadBirdSprites, type BirdSprites } from "./draw";
 import { unlockAudio, playFlapSound, playScoreSound, playCrashSound } from "./sound";
 import { playBgm, stopBgm } from "@/lib/audio";
 import { getBest, setBest, getTopScores, submitScore, type LeaderboardEntry } from "./leaderboard";
@@ -190,6 +190,7 @@ export default function Play() {
       const pip = getCanvasCtx(canvasRef);
       if (pip && video && video.readyState >= 2 && isNewSample) {
         drawMirroredVideoFrame(pip.ctx, video, pip.canvas);
+        if (CONFIG.SHOW_SKELETON && landmarks) drawFlapSkeleton(pip.ctx, pip.canvas, landmarks);
       }
 
       if (stage === "CAMERA_CHECK") {
@@ -322,7 +323,7 @@ export default function Play() {
       <canvas ref={mainCanvasRef} className="fixed inset-0 -z-10 h-full w-full bg-black" />
       <canvas
         ref={canvasRef}
-        className="fixed bottom-5 right-5 z-10 rounded-lg border-2 border-white/40 shadow-lg"
+        className="fixed bottom-5 right-5 z-10 rounded-lg border-2 border-white/40 opacity-85 shadow-lg"
         style={{ width: CONFIG.CAMERA_PIP_WIDTH, height: CONFIG.CAMERA_PIP_HEIGHT }}
       />
 
