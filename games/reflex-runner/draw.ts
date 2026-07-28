@@ -8,10 +8,14 @@
  * CONFIG.GAME_H); drawScene scales that grid to the actual canvas pixel size
  * (w, h) at draw time, mirroring flappy-human/draw.ts.
  *
- * Perspective: everything below is computed in logical (GAME_W/GAME_H) units
- * first, then multiplied by scaleX/scaleY at the very end, same convention
- * flappy-human uses for pipe.x * scaleX etc. For a depth z (CONFIG.FAR_Z at
- * spawn, 0 at the player):
+ * Perspective: linear interpolation from the vanishing point to the near
+ * plane, deliberately NOT a true inverse-distance (1/z) projection — a real
+ * camera's perspective divide accelerates sharply as z -> 0, which reads as
+ * obstacles suddenly lurching at the player right before contact. Since
+ * world-space speed (obstacle.z, in physics.ts) is already constant, a
+ * linear projection keeps the on-screen approach speed constant too, all
+ * the way in — no ramp-up, no last-instant spike. For a depth z (CONFIG.FAR_Z
+ * at spawn, 0 at the player):
  *   t = clamp(z / FAR_Z, 0, 1)              — 0 at player, 1 at vanishing point
  *   scale(t) = lerp(1, MIN_SCALE, t)        — shrink factor for widths/heights
  *   screenX = lerp(xNear, VANISH_X, t)      — lane x position converges
@@ -28,6 +32,9 @@ const ROAD_FILL = "#2b2b33";
 const LANE_LINE = "rgba(255, 255, 255, 0.55)";
 const RUNNER_FILL = "#ffffff";
 const RUNNER_OUTLINE = "#212121";
+const HIT_FILL = "#ff1744"; // runner flips to this the instant a collision happens, so contact reads unmistakably
+const HIT_OUTLINE = "#7f0000";
+const HIT_HALO = "rgba(255, 23, 68, 0.35)";
 const DUCK_FILL = "#ffb300"; // amber bar, sits high — "go under"
 const DUCK_EDGE = "#c67f00";
 const JUMP_FILL = "#ff5252"; // red block, sits low on the ground — "go over"
@@ -67,9 +74,18 @@ function depthScale(t: number): number {
   return lerp(1, MIN_SCALE, t);
 }
 
-/** x position of a lane (0..2, continuous) at the near plane, lane 1 = center. */
+/**
+ * x position of a lane (0..2, continuous) at the near plane, lane 1 = center.
+ * Mirrored (1 - laneX, not laneX - 1): the detector's lane signal comes from
+ * MediaPipe's raw, unmirrored camera frame, where a player's physical-right
+ * lean reads as a DEcrease in raw shoulder x (same as an ordinary
+ * un-mirrored photo of someone facing the camera) and so maps to a LOWER
+ * lane number. Mirroring here — the one place lane numbers become screen
+ * pixels — makes the runner move the same direction the player sees
+ * themselves move in the mirrored camera-preview PIP, instead of backwards.
+ */
 function laneXNear(laneX: number): number {
-  return VANISH_X + (laneX - 1) * LANE_WIDTH_NEAR;
+  return VANISH_X + (1 - laneX) * LANE_WIDTH_NEAR;
 }
 
 function projectX(xNear: number, t: number): number {
@@ -217,9 +233,22 @@ function drawRunner(ctx: CanvasRenderingContext2D, state: GameState, scaleX: num
     ctx.stroke();
   }
 
-  ctx.fillStyle = RUNNER_FILL;
-  ctx.strokeStyle = RUNNER_OUTLINE;
-  ctx.lineWidth = Math.max(1, scaleX * 3);
+  const isDead = state.status === "dead";
+
+  // Impact halo, drawn behind the body so the moment of contact reads at a
+  // glance — this frame is what stays frozen on screen as the RESULTS
+  // backdrop, so it needs to land in a single still frame, not an animation.
+  if (isDead) {
+    const bodyCenterY = (bodyTopY + bodyBottomY) / 2;
+    ctx.fillStyle = HIT_HALO;
+    ctx.beginPath();
+    ctx.arc(feetX, bodyCenterY, bodyW * 1.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = isDead ? HIT_FILL : RUNNER_FILL;
+  ctx.strokeStyle = isDead ? HIT_OUTLINE : RUNNER_OUTLINE;
+  ctx.lineWidth = isDead ? Math.max(2, scaleX * 5) : Math.max(1, scaleX * 3);
   ctx.beginPath();
   ctx.roundRect(feetX - bodyW / 2, bodyTopY, bodyW, bodyBottomY - bodyTopY, bodyW * 0.35);
   ctx.fill();
