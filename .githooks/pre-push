@@ -1,0 +1,13 @@
+#!/bin/sh
+# Mirrors CI's fast checks (lint/typecheck/tests) but skips the build step to
+# keep pre-push quick. Only active once `git config core.hooksPath .githooks`
+# has run (see the "prepare" script in package.json) -- a contributor who
+# hasn't run `npm install`/`npm ci` at least once won't have it wired up,
+# which is fine since CI still catches everything as the backstop.
+set -e
+
+npm run lint
+npm run typecheck
+npm run test:fruit-ninja
+npm run test:crossy-beach
+npm run test:flappy-human
