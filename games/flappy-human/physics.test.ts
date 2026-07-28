@@ -76,12 +76,14 @@ test("hitting the ground sets status to dead, and further steps freeze the state
   assert.equal(frozen, s); // same reference: step() is a no-op once dead
 });
 
-test("hitting the ceiling sets status to dead", () => {
+test("hitting the ceiling clamps the bird there instead of killing it", () => {
   let s = initState();
   // Flapping every frame is a hard vy reset to FLAP_IMPULSE each time (no gravity term),
-  // so the bird climbs at a fixed rate: comfortably clears the ceiling within 100 frames.
-  for (let i = 0; i < 100 && s.status === "flying"; i++) s = step(s, 16, true);
-  assert.equal(s.status, "dead");
+  // so the bird climbs at a fixed rate: comfortably reaches the ceiling within 100 frames.
+  for (let i = 0; i < 100; i++) s = step(s, 16, true);
+  assert.equal(s.status, "flying");
+  assert.equal(s.birdY, BIRD_RADIUS);
+  assert.equal(s.birdVy, 0);
 });
 
 test("a pipe spawns off-screen right on the first step", () => {
