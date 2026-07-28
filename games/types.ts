@@ -74,11 +74,3 @@ export function chainAssignments(playerIds: string[], step: number): Record<stri
   }
   return assignments;
 }
-
-/** True once every listed player id appears as a key of `submissions`. */
-export function allSubmitted(
-  playerIds: string[],
-  submissions: Record<string, unknown>
-): boolean {
-  return playerIds.every((id) => id in submissions);
-}
