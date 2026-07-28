@@ -8,6 +8,7 @@
     "dev:party": "wrangler dev --port 1999",
     "build": "next build",
     "start": "next start",
+    "prepare": "git config core.hooksPath .githooks",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test:fruit-ninja": "tsx --test lib/fruit-ninja/*.test.ts",
