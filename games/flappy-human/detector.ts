@@ -58,7 +58,7 @@ import type { Landmark } from "@/lib/tracking/types";
 import { CONFIG } from "./config";
 
 // BlazePose (MediaPipe Pose) landmark indices we rely on.
-const IDX = {
+export const IDX = {
   L_SHOULDER: 11,
   R_SHOULDER: 12,
   L_WRIST: 15,
