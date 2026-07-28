@@ -21,6 +21,7 @@ import { fruitNinjaMeta } from "./fruit-ninja/meta";
 import { fruitNinjaDuelMeta } from "./fruit-ninja-duel/meta";
 import { crossyBeachMeta } from "./crossy-beach/meta";
 import { flappyHumanMeta } from "./flappy-human/meta";
+import { reflexRunnerMeta } from "./reflex-runner/meta";
 
 export const games: GameMeta[] = [
   sketchChainMeta,
@@ -30,6 +31,7 @@ export const games: GameMeta[] = [
   fruitNinjaDuelMeta,
   crossyBeachMeta,
   flappyHumanMeta,
+  reflexRunnerMeta,
 ];
 
 export function getGameMeta(id: string): GameMeta | undefined {

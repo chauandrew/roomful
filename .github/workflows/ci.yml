@@ -39,6 +39,7 @@ jobs:
       - run: npm run test:fruit-ninja
       - run: npm run test:crossy-beach
       - run: npm run test:flappy-human
+      - run: npm run test:reflex-runner
 
   build:
     runs-on: ubuntu-latest
