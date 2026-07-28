@@ -42,6 +42,7 @@
     "wrangler": "^4.110.0"
   },
   "overrides": {
-    "@cloudflare/workers-types": "^4.20260702.1"
+    "@cloudflare/workers-types": "^4.20260702.1",
+    "postcss": "8.5.24"
   }
 }
