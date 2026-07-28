@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FilesetResolver } from "@mediapipe/tasks-vision";
 
-const TASKS_VERSION = "0.10.12";
+const TASKS_VERSION = "1.0.0";
 const WASM_URL = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VERSION}/wasm`;
 
 type WasmFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
