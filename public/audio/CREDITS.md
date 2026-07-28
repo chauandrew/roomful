@@ -48,3 +48,13 @@ License: [CC0 1.0 Universal](https://creativecommons.org/publicdomain/zero/1.0/)
   (0:59-1:30 of the original), choosing cut points that fall in natural quiet decay moments between
   phrases to minimize an audible seam. Tail crossfaded into head (2s crossfade). Not confirmed fully
   seamless by ear — worth a listen before shipping.
+
+## flappy-human.ogg
+- Track: "Happy Adventure (Loop)"
+- Author: TinyWorlds
+- Source: https://opengameart.org/content/happy-adventure-loop
+- Used by: flappy-human
+- Notes: Replaces a track from flappy-human's original fork whose embedded ID3 metadata (title
+  "The Fish is Blue", artist "Rick Hoppmann") didn't match any verifiable licensed source — swapped
+  for this verified CC0 track instead of guessing at the old one's provenance. Author-stated loop,
+  used in full (46.8s). Loudness-normalized only, not trimmed.

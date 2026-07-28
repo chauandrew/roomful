@@ -71,10 +71,6 @@ export const CONFIG = {
   CAMERA_PIP_WIDTH: 320,
   CAMERA_PIP_HEIGHT: 240,
 
-  // --- Audio ---
-  BG_MUSIC_SRC: "/audio/flappy-human/happy-adventure-loop.mp3",
-  BG_MUSIC_VOLUME: 0.35,
-
   // --- Bird sprite (original hand-drawn SVG art, rendered to PNG) ---
   BIRD_SPRITE_UP: "/images/flappy-human/bird-up.png",
   BIRD_SPRITE_DOWN: "/images/flappy-human/bird-down.png",

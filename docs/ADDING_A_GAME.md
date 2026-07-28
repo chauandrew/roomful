@@ -87,8 +87,7 @@ Both are just reducer shapes:
 - **Simultaneous** ("everyone answers at once"): keep a
   `submissions: Record<playerId, Input>` in state; accept input while your
   phase is collecting; let the host reveal via `onHostAction`, or
-  auto-advance when `allSubmitted(playerIds, submissions)` (helper in
-  `games/types.ts`).
+  auto-advance when `playerIds.every(id => id in submissions)`.
 - **Sequential/chain** ("your output is my next input"): freeze the player
   order in `init`, keep `chains: Entry[][]`, and use
   `chainAssignments(playerIds, step)` (helper) to route chain → player each
@@ -121,7 +120,6 @@ expects. Ready-made components in `components/inputs/`:
 
 | Component | Emits | Use for |
 | --- | --- | --- |
-| `ChoiceInput` | option id(s) | single (tap = submit) or multi choice |
 | `TextInput` | trimmed string | phrases, descriptions, free text |
 | `DrawingCanvas` | PNG data URL | freehand drawing; render anywhere with `<img src={dataUrl}>` |
 
