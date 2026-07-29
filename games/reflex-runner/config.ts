@@ -59,8 +59,8 @@ export const CONFIG = {
 
   // --- Difficulty ramp: gentle at t=0 -> fast & dense at t=RAMP_DURATION_MS ---
   RAMP_DURATION_MS: 30_000,
-  SPEED_START: 190, // world scroll speed, game z-units/s
-  SPEED_END: 380,
+  SPEED_START: 250, // world scroll speed, game z-units/s
+  SPEED_END: 500,
   SPACING_START: 700, // z-distance between consecutive obstacles
   SPACING_END: 380,
 

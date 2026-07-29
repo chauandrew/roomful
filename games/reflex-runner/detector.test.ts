@@ -124,6 +124,40 @@ test("small still-body jitter never fires a phantom jump or flips lane/ducking",
   assert.equal(jumps, 0);
 });
 
+test("a held duck survives a long hold with natural sway, and never fires a phantom jump", () => {
+  const d = calibrated();
+  const duckY = CONFIG.DUCK_ENTER_THRESHOLD + 0.1;
+  const r0 = settle(d, 0, duckY);
+  assert.equal(r0.ducking, true);
+
+  // Small natural body sway while held crouched, safely within the
+  // hysteresis band (nowhere near DUCK_EXIT_THRESHOLD or JUMP_RISE_THRESHOLD).
+  const jitter = [0.03, -0.02, 0.01, -0.03, 0.02, -0.01, 0.025, -0.015];
+  const dt = 20;
+  const totalCalls = 400; // 8 simulated seconds at 20ms/frame
+
+  for (let i = 0; i < totalCalls; i++) {
+    const r = d.update(frame(0, duckY + jitter[i % jitter.length]), dt);
+    assert.equal(r.ducking, true, `ducking flipped false at call ${i}`);
+    assert.equal(r.jumped, false, `phantom jump fired at call ${i}`);
+  }
+});
+
+test("calibrate() returns the baseline {x, width} for a known frame", () => {
+  const d = new RunnerDetector();
+  const result = d.calibrate(frame(0, 0));
+
+  assert.deepEqual(result, { x: 0, width: BASELINE_WIDTH });
+});
+
+test("calibrate() returns null when landmarks are missing or lack shoulders", () => {
+  const d = new RunnerDetector();
+
+  assert.equal(d.calibrate(undefined), null);
+  assert.equal(d.calibrate(null), null);
+  assert.equal(d.calibrate([]), null);
+});
+
 test("update() before calibrate() does not throw and returns neutral output", () => {
   const d = new RunnerDetector();
   const r = d.update(frame(1, 1), 20);

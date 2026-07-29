@@ -8,5 +8,5 @@ export const reflexRunnerMeta: GameMeta = {
   minPlayers: 1,
   maxPlayers: 1,
   durationMinutes: 3,
-  accent: "#f43f5e",
+  accent: "#00fff2",
 };

@@ -93,16 +93,22 @@ export class RunnerDetector {
     this.jumpCooldownMs = 0;
   }
 
-  /** Captures the neutral baseline. Call once, when the player is confirmed ready. */
-  calibrate(landmarks: Landmark[] | undefined | null): void {
-    if (!landmarks) return;
+  /**
+   * Captures the neutral baseline. Call once, when the player is confirmed
+   * ready. Returns the calibrated {x, width} on success (so callers like the
+   * lane-guide overlay can draw against the exact same baseline), or null on
+   * any early-return path.
+   */
+  calibrate(landmarks: Landmark[] | undefined | null): { x: number; width: number } | null {
+    if (!landmarks) return null;
     const lSh = landmarks[IDX.L_SHOULDER];
     const rSh = landmarks[IDX.R_SHOULDER];
-    if (!lSh || !rSh) return;
+    if (!lSh || !rSh) return null;
 
     this.baselineX = (lSh.x + rSh.x) / 2;
     this.baselineY = (lSh.y + rSh.y) / 2;
     this.baselineWidth = Math.max(Math.abs(lSh.x - rSh.x), CONFIG.MIN_SHOULDER_WIDTH);
+    return { x: this.baselineX, width: this.baselineWidth };
   }
 
   /** `dtMs` is the real elapsed time since the previous call, so timing is frame-rate independent. */

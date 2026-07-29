@@ -25,22 +25,23 @@ import { CONFIG } from "./config";
 import { clamp, lerp } from "./math";
 import type { GameState, Obstacle } from "./physics";
 
-// --- Palette (flat, bold fills — legible from across a room / on a projector) ---
-const SKY_TOP = "#1a2740";
-const SKY_BOTTOM = "#3d5a80";
-const ROAD_FILL = "#2b2b33";
-const LANE_LINE = "rgba(255, 255, 255, 0.55)";
+// --- Palette (synthwave: near-black backdrop, glowing neon accents) ---
+const SKY_TOP = "#0d0221";
+const SKY_BOTTOM = "#1a0836";
+const ROAD_FILL = "#0a0a16";
+const LANE_LINE = "#00fff2";
 const RUNNER_FILL = "#ffffff";
-const RUNNER_OUTLINE = "#212121";
-const HIT_FILL = "#ff1744"; // runner flips to this the instant a collision happens, so contact reads unmistakably
-const HIT_OUTLINE = "#7f0000";
-const HIT_HALO = "rgba(255, 23, 68, 0.35)";
-const DUCK_FILL = "#ffb300"; // amber bar, sits high — "go under"
-const DUCK_EDGE = "#c67f00";
-const JUMP_FILL = "#ff5252"; // red block, sits low on the ground — "go over"
-const JUMP_EDGE = "#b71c1c";
-const LANE_FILL = "#7c4dff"; // violet pillar, one lane wide — "get out of this lane"
-const LANE_EDGE = "#4527a0";
+const RUNNER_OUTLINE = "#00fff2";
+const HIT_FILL = "#ff003c"; // runner flips to this the instant a collision happens, so contact reads unmistakably
+const HIT_OUTLINE = "#80001e";
+const HIT_HALO = "rgba(255, 0, 60, 0.35)";
+const DUCK_FILL = "#faff00"; // neon yellow bar, sits high — "go under"
+const DUCK_EDGE = "#c9cc00";
+const JUMP_FILL = "#ff2079"; // neon pink block, sits low on the ground — "go over"
+const JUMP_EDGE = "#b3004f";
+const LANE_FILL = "#b026ff"; // neon purple pillar, one lane wide — "get out of this lane"
+const LANE_EDGE = "#6f0fb3";
+const GLOW_BLUR_NEAR = 8; // glow radius in logical px at the near plane, scaled like other sizes in this file
 
 // --- Perspective constants (feel decisions, not physics — local to rendering) ---
 const VANISH_X = CONFIG.GAME_W / 2; // horizontal center
@@ -143,6 +144,8 @@ function drawRoad(ctx: CanvasRenderingContext2D, scaleX: number, scaleY: number)
   // Two interior lane dividers (between lane 0/1 and lane 1/2), converging to the vanishing point.
   ctx.strokeStyle = LANE_LINE;
   ctx.lineWidth = Math.max(1, scaleX * 2);
+  ctx.shadowColor = LANE_LINE;
+  ctx.shadowBlur = GLOW_BLUR_NEAR * scaleX;
   for (const laneBoundary of [0.5, 1.5]) {
     const xNear = laneXNear(laneBoundary);
     ctx.beginPath();
@@ -150,6 +153,8 @@ function drawRoad(ctx: CanvasRenderingContext2D, scaleX: number, scaleY: number)
     ctx.lineTo(VANISH_X * scaleX, VANISH_Y * scaleY);
     ctx.stroke();
   }
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
 }
 
 function drawObstacle(ctx: CanvasRenderingContext2D, obstacle: Obstacle, scaleX: number, scaleY: number) {
@@ -165,7 +170,7 @@ function drawObstacle(ctx: CanvasRenderingContext2D, obstacle: Obstacle, scaleX:
     const height = JUMP_HEIGHT_NEAR * scale;
     const x = VANISH_X * scaleX - (width * scaleX) / 2;
     const y = (groundY - JUMP_HEIGHT_NEAR * scale) * scaleY;
-    fillRectWithEdge(ctx, x, y, width * scaleX, height * scaleY, JUMP_FILL, JUMP_EDGE);
+    fillRectWithEdge(ctx, x, y, width * scaleX, height * scaleY, JUMP_FILL, JUMP_EDGE, scaleX);
     return;
   }
 
@@ -175,7 +180,7 @@ function drawObstacle(ctx: CanvasRenderingContext2D, obstacle: Obstacle, scaleX:
     const barY = groundY - DUCK_BAR_Y_NEAR * scale;
     const x = VANISH_X * scaleX - (width * scaleX) / 2;
     const y = barY * scaleY;
-    fillRectWithEdge(ctx, x, y, width * scaleX, thickness * scaleY, DUCK_FILL, DUCK_EDGE);
+    fillRectWithEdge(ctx, x, y, width * scaleX, thickness * scaleY, DUCK_FILL, DUCK_EDGE, scaleX);
     return;
   }
 
@@ -185,7 +190,7 @@ function drawObstacle(ctx: CanvasRenderingContext2D, obstacle: Obstacle, scaleX:
   const centerX = projectX(laneXNear(obstacle.lane), t);
   const x = (centerX - width / 2) * scaleX;
   const y = (groundY - height) * scaleY;
-  fillRectWithEdge(ctx, x, y, width * scaleX, height * scaleY, LANE_FILL, LANE_EDGE);
+  fillRectWithEdge(ctx, x, y, width * scaleX, height * scaleY, LANE_FILL, LANE_EDGE, scaleX);
 }
 
 function fillRectWithEdge(
@@ -195,14 +200,19 @@ function fillRectWithEdge(
   width: number,
   height: number,
   fill: string,
-  edge: string
+  edge: string,
+  scaleX: number
 ) {
   if (width <= 0 || height <= 0) return;
   ctx.fillStyle = fill;
   ctx.fillRect(x, y, width, height);
   ctx.strokeStyle = edge;
   ctx.lineWidth = Math.max(1, width * 0.04);
+  ctx.shadowColor = edge;
+  ctx.shadowBlur = GLOW_BLUR_NEAR * scaleX;
   ctx.strokeRect(x, y, width, height);
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
 }
 
 function drawRunner(ctx: CanvasRenderingContext2D, state: GameState, scaleX: number, scaleY: number) {
@@ -226,12 +236,16 @@ function drawRunner(ctx: CanvasRenderingContext2D, state: GameState, scaleX: num
   ctx.strokeStyle = RUNNER_OUTLINE;
   ctx.lineWidth = Math.max(2, scaleX * 4);
   ctx.lineCap = "round";
+  ctx.shadowColor = RUNNER_OUTLINE;
+  ctx.shadowBlur = GLOW_BLUR_NEAR * scaleX;
   for (const sign of [-1, 1]) {
     ctx.beginPath();
     ctx.moveTo(feetX, bodyBottomY);
     ctx.lineTo(feetX + Math.sin(legSwing * sign) * legLenPx * 0.6, feetY);
     ctx.stroke();
   }
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
 
   const isDead = state.status === "dead";
 
@@ -246,13 +260,63 @@ function drawRunner(ctx: CanvasRenderingContext2D, state: GameState, scaleX: num
     ctx.fill();
   }
 
+  const outlineColor = isDead ? HIT_OUTLINE : RUNNER_OUTLINE;
   ctx.fillStyle = isDead ? HIT_FILL : RUNNER_FILL;
-  ctx.strokeStyle = isDead ? HIT_OUTLINE : RUNNER_OUTLINE;
+  ctx.strokeStyle = outlineColor;
   ctx.lineWidth = isDead ? Math.max(2, scaleX * 5) : Math.max(1, scaleX * 3);
   ctx.beginPath();
   ctx.roundRect(feetX - bodyW / 2, bodyTopY, bodyW, bodyBottomY - bodyTopY, bodyW * 0.35);
   ctx.fill();
+  ctx.shadowColor = outlineColor;
+  ctx.shadowBlur = GLOW_BLUR_NEAR * scaleX;
   ctx.stroke();
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+}
+
+/**
+ * Raw-frame (0..1, unmirrored MediaPipe space) x positions of the two lane
+ * boundaries, at the exact CONFIG.LANE_ENTER_THRESHOLD detector.ts uses to
+ * decide a lane switch — so a guide line drawn at these positions marks the
+ * literal moment a lean crosses into a side lane, not an approximation.
+ */
+export function laneGuideXPositions(baseline: { x: number; width: number }): [number, number] {
+  return [
+    baseline.x - CONFIG.LANE_ENTER_THRESHOLD * baseline.width,
+    baseline.x + CONFIG.LANE_ENTER_THRESHOLD * baseline.width,
+  ];
+}
+
+/**
+ * Draws the two lane-boundary guide lines on the camera PIP, mirrored the
+ * same way drawMirroredVideoFrame/drawSkeleton mirror the video (see
+ * lib/tracking/drawPose.ts), so they align with the video feed underneath.
+ * Semi-transparent so the player's video feed stays visible under the lines.
+ */
+export function drawLaneGuides(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, baseline: { x: number; width: number }) {
+  const [xLeft, xRight] = laneGuideXPositions(baseline);
+  const scaleX = canvas.width / 320; // same PIP-canvas scale reference drawSkeleton uses (lib/tracking/drawPose.ts)
+
+  ctx.save();
+  ctx.translate(canvas.width, 0);
+  ctx.scale(-1, 1);
+
+  ctx.strokeStyle = LANE_LINE;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = Math.max(2, scaleX);
+  ctx.shadowColor = LANE_LINE;
+  ctx.shadowBlur = GLOW_BLUR_NEAR * scaleX;
+  for (const x of [xLeft, xRight]) {
+    ctx.beginPath();
+    ctx.moveTo(x * canvas.width, 0);
+    ctx.lineTo(x * canvas.width, canvas.height);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.shadowColor = "transparent";
+  ctx.shadowBlur = 0;
+
+  ctx.restore();
 }
 
 function drawScore(ctx: CanvasRenderingContext2D, w: number, score: number) {
@@ -263,12 +327,19 @@ function drawScore(ctx: CanvasRenderingContext2D, w: number, score: number) {
   const x = w / 2;
   const y = fontSize * 0.35;
 
-  ctx.shadowColor = "rgba(0,0,0,0.45)";
+  // Dark drop-shadow first, for legibility against the near-black sky (a plain glow alone
+  // doesn't separate the cyan text from a dark background the way it separated white before).
+  ctx.shadowColor = "rgba(0,0,0,0.6)";
   ctx.shadowBlur = fontSize * 0.08;
   ctx.shadowOffsetY = fontSize * 0.04;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = LANE_LINE;
+  ctx.fillText(String(score), x, y);
+  ctx.shadowOffsetY = 0;
+
+  // Neon glow pass on top.
+  ctx.shadowColor = LANE_LINE;
+  ctx.shadowBlur = fontSize * 0.18;
   ctx.fillText(String(score), x, y);
   ctx.shadowColor = "transparent";
   ctx.shadowBlur = 0;
-  ctx.shadowOffsetY = 0;
 }

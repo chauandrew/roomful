@@ -30,7 +30,7 @@ import { reflexRunnerMeta } from "./meta";
 import { CONFIG } from "./config";
 import { RunnerDetector, isBodyVisible } from "./detector";
 import { initState, step, type RunnerInput } from "./physics";
-import { drawScene } from "./draw";
+import { drawScene, drawLaneGuides } from "./draw";
 import { unlockAudio, playJumpSound, playScoreSound, playCrashSound } from "./sound";
 import { getBest, setBest, getTopScores, submitScore, type LeaderboardEntry } from "./leaderboard";
 
@@ -81,6 +81,12 @@ export default function Play() {
   const handleResultRef = useRef<(result: PoseResult | null) => void>(() => {});
   const lastLandmarksRef = useRef<Landmark[] | undefined>(undefined);
   const pendingDetectorDtRef = useRef(0);
+
+  // Calibrated baseline captured in startCountdown(), used to draw the
+  // lane-guide lines on the PIP at the exact lane-switch threshold. Only
+  // meaningful once calibrate() has run, so it's null until then and reset
+  // to null on every fresh CAMERA_CHECK entry (see enterCameraCheck).
+  const laneGuideBaselineRef = useRef<{ x: number; width: number } | null>(null);
 
   // Latest committed lane/ducking hold state, carried across the (common)
   // animation frames where the camera hasn't produced a new sample yet — see
@@ -182,7 +188,7 @@ export default function Play() {
     // Calibrate against whatever landmarks were most recently seen — the
     // player has just held a stable stance for READY_STABILITY_MS, so this
     // is their neutral baseline for the whole run.
-    detectorRef.current!.calibrate(lastLandmarksRef.current ?? null);
+    laneGuideBaselineRef.current = detectorRef.current!.calibrate(lastLandmarksRef.current ?? null);
     countdownStartRef.current = performance.now();
     setStage("COUNTDOWN");
     startCountdownTimer();
@@ -199,6 +205,9 @@ export default function Play() {
       const pip = getCanvasCtx(canvasRef);
       if (pip && video && video.readyState >= 2 && isNewSample) {
         drawMirroredVideoFrame(pip.ctx, video, pip.canvas);
+        if (laneGuideBaselineRef.current) {
+          drawLaneGuides(pip.ctx, pip.canvas, laneGuideBaselineRef.current);
+        }
       }
 
       if (stage === "CAMERA_CHECK") {
@@ -285,6 +294,7 @@ export default function Play() {
     // and lane/duck/jump hysteresis state. calibrate() re-establishes the
     // baseline once the player is confirmed ready again (in startCountdown).
     detectorRef.current!.reset();
+    laneGuideBaselineRef.current = null;
     setStage("CAMERA_CHECK");
   }
 
