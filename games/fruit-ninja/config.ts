@@ -38,5 +38,4 @@ export const CONFIG = {
   MAX_PLAUSIBLE_SCORE: 1200, // clamp; hard ceiling is ~100 launches/round at max rate x 10/fruit, plus combo headroom
   NAME_MAX_LEN: 20,
   LEADERBOARD_SIZE: 10,
-  BEST_SCORE_KEY: "fruit-ninja:best",
 };
