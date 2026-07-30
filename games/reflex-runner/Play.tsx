@@ -101,15 +101,23 @@ export default function Play() {
   // build. Left/Right set the target lane directly; Down holds duck; Up or
   // Space pulses one jump. ORed with real camera detection, not a full
   // replacement, so this stays useful even mid-camera-session.
-  const devLaneRef = useRef<0 | 1 | 2>(1);
+  //
+  // devLaneRef starts `null` (no override) rather than defaulting to a
+  // fixed lane: unlike ducking/jumped, a lane is a value, not a boolean
+  // event, so there's no "OR" to fall back on — a default of e.g. 1 would
+  // silently pin the runner to that lane forever for anyone playing with a
+  // real camera (who never touches the arrow keys), discarding the actual
+  // detected lane completely. Only start overriding once a key has
+  // actually set it.
+  const devLaneRef = useRef<0 | 1 | 2 | null>(null);
   const devDuckingRef = useRef(false);
   const devJumpPulseRef = useRef(false);
 
   useEffect(() => {
     if (!DEV_TUNING) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "ArrowLeft") devLaneRef.current = Math.max(0, devLaneRef.current - 1) as 0 | 1 | 2;
-      else if (e.key === "ArrowRight") devLaneRef.current = Math.min(2, devLaneRef.current + 1) as 0 | 1 | 2;
+      if (e.key === "ArrowLeft") devLaneRef.current = Math.max(0, (devLaneRef.current ?? 1) - 1) as 0 | 1 | 2;
+      else if (e.key === "ArrowRight") devLaneRef.current = Math.min(2, (devLaneRef.current ?? 1) + 1) as 0 | 1 | 2;
       else if (e.key === "ArrowDown") devDuckingRef.current = true;
       else if (e.key === "ArrowUp" || e.key === " ") devJumpPulseRef.current = true;
     }
@@ -206,7 +214,7 @@ export default function Play() {
       if (pip && video && video.readyState >= 2 && isNewSample) {
         drawMirroredVideoFrame(pip.ctx, video, pip.canvas);
         if (laneGuideBaselineRef.current) {
-          drawLaneGuides(pip.ctx, pip.canvas, laneGuideBaselineRef.current);
+          drawLaneGuides(pip.ctx, pip.canvas);
         }
       }
 
@@ -257,7 +265,7 @@ export default function Play() {
       let input: RunnerInput = { lane: lastLaneRef.current, ducking: lastDuckingRef.current, jumped };
       if (DEV_TUNING) {
         input = {
-          lane: devLaneRef.current,
+          lane: devLaneRef.current ?? input.lane,
           ducking: devDuckingRef.current || input.ducking,
           jumped: devJumpPulseRef.current || input.jumped,
         };

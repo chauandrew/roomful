@@ -52,8 +52,17 @@ const LANE_WIDTH_NEAR = CONFIG.GAME_W * 0.24; // width of one lane at the near (
 const ROAD_HALF_WIDTH_NEAR = LANE_WIDTH_NEAR * 1.5; // 3 lanes wide, centered on VANISH_X
 
 // Obstacle heights/thicknesses at the near plane, in logical units, scaled by scale(t).
-const JUMP_HEIGHT_NEAR = 70; // hurdle height off the ground
-const DUCK_BAR_Y_NEAR = 150; // duck bar's height above the ground
+// Both sized/positioned relative to the runner's own geometry (LEG_LENGTH +
+// RUNNER_BODY_H below): a standing runner's head-top sits at ~100 units, a
+// ducked one at ~67. JUMP_HEIGHT_NEAR is kept well under that so it reads as
+// a low hurdle to hop, not a wall; DUCK_BAR_Y_NEAR's bottom edge (Y minus
+// thickness) sits between the two head heights, so it visibly clears a
+// standing runner's head only once ducked. (Previously 70 and 150 — the old
+// duck bar floated entirely above even a standing runner's head and so
+// never actually required ducking to clear, which was the root of "I can't
+// tell when I'm supposed to duck or jump.")
+const JUMP_HEIGHT_NEAR = 40; // hurdle height off the ground
+const DUCK_BAR_Y_NEAR = 112; // duck bar's top edge, height above the ground
 const DUCK_BAR_THICKNESS_NEAR = 34;
 const LANE_PILLAR_HEIGHT_NEAR = 220;
 const LANE_BARRIER_WIDTH_FRAC = 0.72; // fraction of a lane's width, leaves a visible gap to neighboring lanes
@@ -276,15 +285,19 @@ function drawRunner(ctx: CanvasRenderingContext2D, state: GameState, scaleX: num
 
 /**
  * Raw-frame (0..1, unmirrored MediaPipe space) x positions of the two lane
- * boundaries, at the exact CONFIG.LANE_ENTER_THRESHOLD detector.ts uses to
- * decide a lane switch — so a guide line drawn at these positions marks the
- * literal moment a lean crosses into a side lane, not an approximation.
+ * boundaries on the camera preview — simple equal thirds of the frame.
+ *
+ * An earlier version placed these at the detector's actual
+ * CONFIG.LANE_ENTER_THRESHOLD (shoulder-widths from the calibrated
+ * baseline), so a line crossing was the literal moment a lean registered as
+ * a lane switch. In practice that threshold is small relative to the whole
+ * frame, so the resulting guide was lopsided — a skinny center band
+ * flanked by two huge outer regions — which read as confusing rather than
+ * helpful. Equal thirds is an approximation of the real (narrower)
+ * threshold, but communicates "3 lanes" far more intuitively at a glance.
  */
-export function laneGuideXPositions(baseline: { x: number; width: number }): [number, number] {
-  return [
-    baseline.x - CONFIG.LANE_ENTER_THRESHOLD * baseline.width,
-    baseline.x + CONFIG.LANE_ENTER_THRESHOLD * baseline.width,
-  ];
+export function laneGuideXPositions(): [number, number] {
+  return [1 / 3, 2 / 3];
 }
 
 /**
@@ -293,8 +306,8 @@ export function laneGuideXPositions(baseline: { x: number; width: number }): [nu
  * lib/tracking/drawPose.ts), so they align with the video feed underneath.
  * Semi-transparent so the player's video feed stays visible under the lines.
  */
-export function drawLaneGuides(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, baseline: { x: number; width: number }) {
-  const [xLeft, xRight] = laneGuideXPositions(baseline);
+export function drawLaneGuides(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
+  const [xLeft, xRight] = laneGuideXPositions();
   const scaleX = canvas.width / 320; // same PIP-canvas scale reference drawSkeleton uses (lib/tracking/drawPose.ts)
 
   ctx.save();
