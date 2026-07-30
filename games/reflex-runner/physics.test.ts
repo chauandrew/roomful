@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CONFIG } from "./config";
-import { initState, step, type GameState, type Obstacle } from "./physics";
+import { initState, step, randomObstacleGroup, type GameState, type Obstacle } from "./physics";
 
 const { OBSTACLE_THICKNESS } = CONFIG;
 
@@ -80,4 +80,33 @@ test("once dead, further step() calls are no-ops", () => {
 
 test("FAR_Z gives at least MIN_REACTION_MS of warning even at max ramp speed", () => {
   assert.ok(CONFIG.FAR_Z / CONFIG.SPEED_END >= CONFIG.MIN_REACTION_MS / 1000);
+});
+
+test("a hurdle-then-duck at max ramp speed always leaves JUMP_LANDING_BUFFER_MS to land and duck", () => {
+  const worstCaseGapMs = (CONFIG.SPACING_END / CONFIG.SPEED_END) * 1000;
+  assert.ok(CONFIG.JUMP_DURATION_END_MS + CONFIG.JUMP_LANDING_BUFFER_MS <= worstCaseGapMs);
+});
+
+test("randomObstacleGroup never pairs before DOUBLE_OBSTACLE_START_MS", () => {
+  for (let i = 0; i < 200; i++) {
+    assert.equal(randomObstacleGroup(CONFIG.DOUBLE_OBSTACLE_START_MS - 1).length, 1);
+  }
+});
+
+test("randomObstacleGroup pairs never combine jump+duck, and lane+lane pairs always use two different lanes", () => {
+  let sawPair = false;
+  for (let i = 0; i < 500; i++) {
+    const group = randomObstacleGroup(CONFIG.DOUBLE_OBSTACLE_START_MS);
+    assert.ok(group.length === 1 || group.length === 2);
+    if (group.length !== 2) continue;
+    sawPair = true;
+
+    const types = group.map((o) => o.type);
+    assert.ok(!(types.includes("jump") && types.includes("duck")), "jump and duck must never pair");
+
+    if (types[0] === "lane" && types[1] === "lane") {
+      assert.notEqual(group[0].lane, group[1].lane);
+    }
+  }
+  assert.ok(sawPair, "expected at least one pair across 500 tries at DOUBLE_OBSTACLE_CHANCE");
 });

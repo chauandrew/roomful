@@ -24,6 +24,7 @@ import { flappyHumanMeta } from "./flappy-human/meta";
 import { reflexRunnerMeta } from "./reflex-runner/meta";
 
 export const games: GameMeta[] = [
+  reflexRunnerMeta,
   sketchChainMeta,
   flossRushMeta,
   chompChompMeta,
@@ -31,7 +32,6 @@ export const games: GameMeta[] = [
   fruitNinjaDuelMeta,
   crossyBeachMeta,
   flappyHumanMeta,
-  reflexRunnerMeta,
 ];
 
 export function getGameMeta(id: string): GameMeta | undefined {

@@ -45,8 +45,18 @@ export const CONFIG = {
   // --- Runner ---
   LANE_COUNT: 3,
   LANE_SWITCH_MS: 140, // tween duration for a visual lane change (collision uses the discrete target lane, not this tween)
-  JUMP_DURATION_MS: 520, // fixed-duration jump arc; player is "airborne" for this whole window
-  JUMP_HEIGHT: 140, // peak visual height of the jump arc, game units
+  // Jump arc duration ramps DOWN from START to END over RAMP_DURATION_MS (the
+  // same clock as speed/spacing below), the opposite direction from
+  // everything else — at max speed a full 1080ms jump would keep the player
+  // airborne (unable to duck) past the very next obstacle's arrival, an
+  // unavoidable death if it's a duck. JUMP_DURATION_END_MS is asserted in
+  // physics.test.ts to always leave JUMP_LANDING_BUFFER_MS of real time to
+  // land and crouch before the next obstacle can legally arrive, so a
+  // hurdle-then-duck at max speed is always survivable — just tight.
+  JUMP_DURATION_START_MS: 1080,
+  JUMP_DURATION_END_MS: 450,
+  JUMP_LANDING_BUFFER_MS: 300, // min ms after landing to get into a duck before the next obstacle arrives, at max speed
+  JUMP_HEIGHT: 280, // peak visual height of the jump arc, game units
 
   // --- World / obstacles ---
   // Obstacles exist on a depth axis "z": they spawn at FAR_Z and scroll
@@ -63,6 +73,15 @@ export const CONFIG = {
   SPEED_END: 500,
   SPACING_START: 700, // z-distance between consecutive obstacles
   SPACING_END: 380,
+
+  // Past this point in the ramp, a spawn sometimes produces two obstacles at
+  // once instead of one: a jump or duck hurdle paired with a lane barrier
+  // (jump/duck it while also dodging into a safe lane), or two lane barriers
+  // in different lanes (always leaves exactly one lane open). Jump and duck
+  // never pair together — you can't be airborne and ducking at once. See
+  // randomObstacleGroup() in physics.ts.
+  DOUBLE_OBSTACLE_START_MS: 10_000,
+  DOUBLE_OBSTACLE_CHANCE: 0.3, // fraction of spawns, once past DOUBLE_OBSTACLE_START_MS, that are a pair instead of a single obstacle
 
   // Minimum time an obstacle must be visible before it reaches the player,
   // at max ramp speed — a hard latency-safety floor. Detector + physics

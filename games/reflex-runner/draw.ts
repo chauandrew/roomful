@@ -54,16 +54,20 @@ const ROAD_HALF_WIDTH_NEAR = LANE_WIDTH_NEAR * 1.5; // 3 lanes wide, centered on
 // Obstacle heights/thicknesses at the near plane, in logical units, scaled by scale(t).
 // Both sized/positioned relative to the runner's own geometry (LEG_LENGTH +
 // RUNNER_BODY_H below): a standing runner's head-top sits at ~100 units, a
-// ducked one at ~67. JUMP_HEIGHT_NEAR is kept well under that so it reads as
-// a low hurdle to hop, not a wall; DUCK_BAR_Y_NEAR's bottom edge (Y minus
-// thickness) sits between the two head heights, so it visibly clears a
-// standing runner's head only once ducked. (Previously 70 and 150 — the old
-// duck bar floated entirely above even a standing runner's head and so
-// never actually required ducking to clear, which was the root of "I can't
-// tell when I'm supposed to duck or jump.")
-const JUMP_HEIGHT_NEAR = 40; // hurdle height off the ground
-const DUCK_BAR_Y_NEAR = 112; // duck bar's top edge, height above the ground
-const DUCK_BAR_THICKNESS_NEAR = 34;
+// ducked one at ~67. JUMP_HEIGHT_NEAR (the hurdle rail's top) is kept well
+// under that so it reads as a low hurdle to hop, not a wall. DUCK_BAR_BOTTOM_NEAR
+// sits between the two head heights (above ducked, below standing), so it
+// visibly clears a standing runner's head only once ducked — the bar is then
+// built tall going UP from that fixed bottom edge (not down), so making it
+// look more obviously "duck under this" never risks dropping the bottom edge
+// below the ducked head height, which would clip a successfully-ducked
+// runner's sprite through it.
+const JUMP_HEIGHT_NEAR = 70; // hurdle rail height off the ground — most of this is open leg-gap, not rail
+const JUMP_RAIL_THICKNESS_NEAR = 10; // vertical thickness of the hurdle's top rail — thin, so the legs read as load-bearing rather than decorative feet
+const JUMP_LEG_WIDTH_NEAR = 14; // width of each vertical support leg
+const JUMP_LEG_COUNT = 4; // evenly spaced support legs across the road width
+const DUCK_BAR_BOTTOM_NEAR = 82; // duck bar's bottom edge, height above the ground
+const DUCK_BAR_THICKNESS_NEAR = 280; // tall hanging barrier, reads unmistakably as "duck under this"
 const LANE_PILLAR_HEIGHT_NEAR = 220;
 const LANE_BARRIER_WIDTH_FRAC = 0.72; // fraction of a lane's width, leaves a visible gap to neighboring lanes
 
@@ -78,6 +82,21 @@ const LEG_SWING_ANGLE = 0.9; // radians, max leg swing from vertical
 
 function depthT(z: number): number {
   return clamp(z / CONFIG.FAR_Z, 0, 1);
+}
+
+// depthT is linear in z, and z scrolls toward the player at a constant
+// world-space rate (physics.ts), so scale/position built directly from it
+// change at a literally constant screen-space rate for the whole approach —
+// zero acceleration. Real approaching objects grow at an ACCELERATING rate
+// (angular size ~ 1/distance), which is what eyes expect, so constant-rate
+// growth reads as the obstacle slowing down. This warps the depth fraction
+// (rendering only — physics.ts's z stays linear, so collision timing is
+// untouched) so apparent growth mildly accelerates near the player, without
+// the unbounded blowup a true 1/z projection would produce right at contact
+// (the exact "sudden lurch" this file's header comment already rejected).
+const APPROACH_EASE = 1.4;
+function easedT(t: number): number {
+  return 1 - Math.pow(1 - t, APPROACH_EASE);
 }
 
 function depthScale(t: number): number {
@@ -104,6 +123,11 @@ function projectX(xNear: number, t: number): number {
 
 function projectY(t: number): number {
   return lerp(NEAR_Y, VANISH_Y, t);
+}
+
+function depthAt(z: number): { t: number; scale: number; groundY: number } {
+  const t = easedT(depthT(z));
+  return { t, scale: depthScale(t), groundY: projectY(t) };
 }
 
 export function drawScene(ctx: CanvasRenderingContext2D, w: number, h: number, state: GameState): void {
@@ -166,40 +190,166 @@ function drawRoad(ctx: CanvasRenderingContext2D, scaleX: number, scaleY: number)
   ctx.shadowBlur = 0;
 }
 
-function drawObstacle(ctx: CanvasRenderingContext2D, obstacle: Obstacle, scaleX: number, scaleY: number) {
-  const { z, type } = obstacle;
-  if (z > CONFIG.FAR_Z || z < -CONFIG.OBSTACLE_THICKNESS) return; // cheap cull
+// Screen-space rect (logical/unscaled units) of one obstacle's cross-section
+// at a given depth z. Called twice per obstacle — at its leading edge (z)
+// and its trailing edge (z + OBSTACLE_THICKNESS) — so drawObstacle can
+// render the obstacle's real depth extent as a box instead of a flat card.
+interface FaceRect {
+  xLeft: number;
+  xRight: number;
+  yTop: number;
+  yBottom: number;
+}
 
-  const t = depthT(z);
-  const scale = depthScale(t);
-  const groundY = projectY(t);
+function obstacleFace(obstacle: Obstacle, z: number): FaceRect {
+  const { t, scale, groundY } = depthAt(z);
 
-  if (type === "jump") {
+  if (obstacle.type === "jump") {
+    // The hurdle's top rail only — legs are drawn separately in drawObstacle.
     const width = ROAD_HALF_WIDTH_NEAR * 2 * scale;
-    const height = JUMP_HEIGHT_NEAR * scale;
-    const x = VANISH_X * scaleX - (width * scaleX) / 2;
-    const y = (groundY - JUMP_HEIGHT_NEAR * scale) * scaleY;
-    fillRectWithEdge(ctx, x, y, width * scaleX, height * scaleY, JUMP_FILL, JUMP_EDGE, scaleX);
-    return;
+    const xLeft = VANISH_X - width / 2;
+    const yTop = groundY - JUMP_HEIGHT_NEAR * scale;
+    return { xLeft, xRight: xLeft + width, yTop, yBottom: yTop + JUMP_RAIL_THICKNESS_NEAR * scale };
   }
 
-  if (type === "duck") {
+  if (obstacle.type === "duck") {
     const width = ROAD_HALF_WIDTH_NEAR * 2 * scale;
-    const thickness = DUCK_BAR_THICKNESS_NEAR * scale;
-    const barY = groundY - DUCK_BAR_Y_NEAR * scale;
-    const x = VANISH_X * scaleX - (width * scaleX) / 2;
-    const y = barY * scaleY;
-    fillRectWithEdge(ctx, x, y, width * scaleX, thickness * scaleY, DUCK_FILL, DUCK_EDGE, scaleX);
-    return;
+    const xLeft = VANISH_X - width / 2;
+    const yBottom = groundY - DUCK_BAR_BOTTOM_NEAR * scale;
+    return { xLeft, xRight: xLeft + width, yTop: yBottom - DUCK_BAR_THICKNESS_NEAR * scale, yBottom };
   }
 
   // "lane": tall pillar in a single lane's width
   const width = LANE_WIDTH_NEAR * LANE_BARRIER_WIDTH_FRAC * scale;
-  const height = LANE_PILLAR_HEIGHT_NEAR * scale;
   const centerX = projectX(laneXNear(obstacle.lane), t);
-  const x = (centerX - width / 2) * scaleX;
-  const y = (groundY - height) * scaleY;
-  fillRectWithEdge(ctx, x, y, width * scaleX, height * scaleY, LANE_FILL, LANE_EDGE, scaleX);
+  const xLeft = centerX - width / 2;
+  return { xLeft, xRight: xLeft + width, yTop: groundY - LANE_PILLAR_HEIGHT_NEAR * scale, yBottom: groundY };
+}
+
+function fillQuad(
+  ctx: CanvasRenderingContext2D,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+  x4: number,
+  y4: number
+) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.lineTo(x3, y3);
+  ctx.lineTo(x4, y4);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// The three faces connecting the near and far cross-sections — left, right,
+// and a roof (jump/lane, box sitting on the ground) or underside (duck, box
+// hanging overhead) — everything but the front face, which the caller draws
+// separately on top. Without these a "thick" obstacle was just two flat
+// cards floating apart, open on all sides. Filled with the type's *_EDGE
+// tone (already a darker shade) so they read as the shaded, less-lit faces
+// without adding new palette entries.
+function drawObstacleSideFaces(
+  ctx: CanvasRenderingContext2D,
+  near: FaceRect,
+  far: FaceRect,
+  edge: string,
+  useBottomEdge: boolean,
+  scaleX: number,
+  scaleY: number
+) {
+  ctx.fillStyle = edge;
+
+  for (const side of ["xLeft", "xRight"] as const) {
+    fillQuad(
+      ctx,
+      near[side] * scaleX,
+      near.yTop * scaleY,
+      near[side] * scaleX,
+      near.yBottom * scaleY,
+      far[side] * scaleX,
+      far.yBottom * scaleY,
+      far[side] * scaleX,
+      far.yTop * scaleY
+    );
+  }
+
+  const nearY = useBottomEdge ? near.yBottom : near.yTop;
+  const farY = useBottomEdge ? far.yBottom : far.yTop;
+  fillQuad(
+    ctx,
+    near.xLeft * scaleX,
+    nearY * scaleY,
+    near.xRight * scaleX,
+    nearY * scaleY,
+    far.xRight * scaleX,
+    farY * scaleY,
+    far.xLeft * scaleX,
+    farY * scaleY
+  );
+}
+
+// Vertical support legs under a jump obstacle's rail, evenly spaced across
+// its width, running from the rail's underside down to the ground — turns
+// the rail (drawn separately by the caller) into a hurdle silhouette instead
+// of a floating bar, and reads as open latticework you jump OVER, distinct
+// from the duck bar's solid hanging curtain you go UNDER.
+function drawHurdleLegs(
+  ctx: CanvasRenderingContext2D,
+  near: FaceRect,
+  groundY: number,
+  scale: number,
+  fill: string,
+  edge: string,
+  scaleX: number,
+  scaleY: number
+) {
+  const legWidth = JUMP_LEG_WIDTH_NEAR * scale;
+  const usableWidth = near.xRight - near.xLeft;
+  for (let i = 0; i < JUMP_LEG_COUNT; i++) {
+    const centerX = near.xLeft + (usableWidth * (i + 0.5)) / JUMP_LEG_COUNT;
+    fillRectWithEdge(
+      ctx,
+      (centerX - legWidth / 2) * scaleX,
+      near.yBottom * scaleY,
+      legWidth * scaleX,
+      (groundY - near.yBottom) * scaleY,
+      fill,
+      edge,
+      scaleX
+    );
+  }
+}
+
+function drawObstacle(ctx: CanvasRenderingContext2D, obstacle: Obstacle, scaleX: number, scaleY: number) {
+  const { z, type } = obstacle;
+  if (z > CONFIG.FAR_Z || z < -CONFIG.OBSTACLE_THICKNESS) return; // cheap cull
+
+  const near = obstacleFace(obstacle, z);
+  const far = obstacleFace(obstacle, z + CONFIG.OBSTACLE_THICKNESS);
+  const [fill, edge] = type === "jump" ? [JUMP_FILL, JUMP_EDGE] : type === "duck" ? [DUCK_FILL, DUCK_EDGE] : [LANE_FILL, LANE_EDGE];
+
+  if (type === "jump") {
+    const { scale, groundY } = depthAt(z);
+    drawHurdleLegs(ctx, near, groundY, scale, fill, edge, scaleX, scaleY);
+  }
+
+  drawObstacleSideFaces(ctx, near, far, edge, type === "duck", scaleX, scaleY);
+
+  fillRectWithEdge(
+    ctx,
+    near.xLeft * scaleX,
+    near.yTop * scaleY,
+    (near.xRight - near.xLeft) * scaleX,
+    (near.yBottom - near.yTop) * scaleY,
+    fill,
+    edge,
+    scaleX
+  );
 }
 
 function fillRectWithEdge(
@@ -227,7 +377,7 @@ function fillRectWithEdge(
 function drawRunner(ctx: CanvasRenderingContext2D, state: GameState, scaleX: number, scaleY: number) {
   const xNear = laneXNear(state.laneX);
 
-  const airborneRatio = clamp(state.airborneMs / CONFIG.JUMP_DURATION_MS, 0, 1);
+  const airborneRatio = clamp(state.airborneMs / state.airborneTotalMs, 0, 1);
   const heightRatio = state.airborneMs > 0 ? Math.sin(Math.PI * (1 - airborneRatio)) : 0;
   const jumpOffsetPx = heightRatio * CONFIG.JUMP_HEIGHT * scaleY;
 
