@@ -35,7 +35,7 @@ export const CONFIG = {
   // confirmed briefly (rejects landmark jitter), then a cooldown so the
   // settling tail of one jump can't trigger a second.
   JUMP_RISE_THRESHOLD: -0.28, // shoulder-widths upward (negative) from baseline that starts confirming a jump
-  JUMP_CONFIRM_MS: 30, // must clear JUMP_RISE_THRESHOLD continuously this long before it fires (rejects single-sample jitter)
+  JUMP_CONFIRM_MS: 30, // must clear JUMP_RISE_THRESHOLD continuously this long before it fires
   JUMP_COOLDOWN_MS: 500, // refractory period after a fired jump before a new one can start
 
   // --- Logical game space (canvas is scaled to this at draw time) ---

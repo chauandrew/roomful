@@ -15,6 +15,20 @@ function stateWith(obstacle: Obstacle, overrides: Partial<GameState> = {}): Game
 
 const noInput = { lane: 1 as const, ducking: false, jumped: false };
 
+// mulberry32 — tiny seeded PRNG so property tests over randomObstacleGroup()
+// are reproducible: any failure re-runs with the exact same sequence instead
+// of depending on whatever Math.random() happened to produce that run.
+function seededRandom(seed: number): () => number {
+  let a = seed;
+  return function () {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 test("a jump obstacle is cleared while airborne, and kills when not", () => {
   const airborne = stateWith({ z: 0, type: "jump", lane: 1, passed: false }, { airborneMs: 300 });
   const cleared = step(airborne, 0, noInput);
@@ -94,19 +108,26 @@ test("randomObstacleGroup never pairs before DOUBLE_OBSTACLE_START_MS", () => {
 });
 
 test("randomObstacleGroup pairs never combine jump+duck, and lane+lane pairs always use two different lanes", () => {
-  let sawPair = false;
-  for (let i = 0; i < 500; i++) {
-    const group = randomObstacleGroup(CONFIG.DOUBLE_OBSTACLE_START_MS);
-    assert.ok(group.length === 1 || group.length === 2);
-    if (group.length !== 2) continue;
-    sawPair = true;
+  // Seeded so a failure is reproducible instead of a one-off roll of Math.random().
+  const originalRandom = Math.random;
+  Math.random = seededRandom(42);
+  try {
+    let sawPair = false;
+    for (let i = 0; i < 500; i++) {
+      const group = randomObstacleGroup(CONFIG.DOUBLE_OBSTACLE_START_MS);
+      assert.ok(group.length === 1 || group.length === 2);
+      if (group.length !== 2) continue;
+      sawPair = true;
 
-    const types = group.map((o) => o.type);
-    assert.ok(!(types.includes("jump") && types.includes("duck")), "jump and duck must never pair");
+      const types = group.map((o) => o.type);
+      assert.ok(!(types.includes("jump") && types.includes("duck")), "jump and duck must never pair");
 
-    if (types[0] === "lane" && types[1] === "lane") {
-      assert.notEqual(group[0].lane, group[1].lane);
+      if (types[0] === "lane" && types[1] === "lane") {
+        assert.notEqual(group[0].lane, group[1].lane);
+      }
     }
+    assert.ok(sawPair, "expected at least one pair across 500 tries at DOUBLE_OBSTACLE_CHANCE");
+  } finally {
+    Math.random = originalRandom;
   }
-  assert.ok(sawPair, "expected at least one pair across 500 tries at DOUBLE_OBSTACLE_CHANCE");
 });

@@ -13,8 +13,8 @@
  * physics.ts's problem to not penalize.
  *
  * Jump is the one transient event: a fast rise past baseline confirmed for
- * JUMP_CONFIRM_MS (rejects jitter), fires once, then a cooldown blocks a
- * re-fire off the same physical jump.
+ * JUMP_CONFIRM_MS, fires once, then a cooldown blocks a re-fire off the same
+ * physical jump.
  */
 import { MovingAverage, isVisible } from "@/lib/tracking/signals";
 import type { Landmark } from "@/lib/tracking/types";
