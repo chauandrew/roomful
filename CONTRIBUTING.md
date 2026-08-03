@@ -15,6 +15,11 @@ plugin-shaped: almost every contribution should be a new folder under
 - **Platform changes** (new shared input component, new reducer helper,
   lobby improvements): welcome, but keep the room server game-agnostic.
   Anything game-specific belongs in a game's reducer or views.
+- **Multi-user games need a second deploy after merge**: their reducer is
+  bundled into the room server, which Vercel doesn't deploy. A maintainer has
+  to run `npm run deploy:party` for the game to work in production (see
+  [README](README.md#redeploying-after-a-change)). Nothing for you to do as a
+  contributor, but don't be surprised if your merged game isn't live yet.
 - **Server code stays pure**: files imported by
   `games/server-registry.ts` / `party/index.ts` must not import React or
   browser APIs, must use relative imports, and reducers must stay pure

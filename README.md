@@ -80,6 +80,23 @@ No shared code changes needed.
 Players never create accounts anywhere; only the deployer needs the two free
 accounts.
 
+### Redeploying after a change
+
+These two deploy on different triggers, and that trips people up:
+
+| What changed | What needs deploying |
+| --- | --- |
+| UI, routes, styles, a single-device game | Vercel only, automatic on push to `main` |
+| A multi-user game's `server.ts`, a `server-registry.ts` entry, anything in `party/` | Vercel **plus** `npm run deploy:party` |
+
+Vercel redeploys itself on every push. The room server never does; it only
+updates when someone runs `npm run deploy:party`.
+
+Multi-user game logic is bundled into the room server, not into Next. So
+merging a new multi-user game without that second command puts its card on
+the homepage while the room server still has no logic for it, and the host
+gets `No multi-user game "<id>"` when they press Start.
+
 ## Contributing
 
 PRs for new games are very welcome — that's the whole point of the plugin
