@@ -84,3 +84,7 @@ accounts.
 
 PRs for new games are very welcome — that's the whole point of the plugin
 design. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE). Contributions are accepted under the same terms.
