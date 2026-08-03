@@ -71,31 +71,25 @@ No shared code changes needed.
 
 ## Deploying
 
-1. **Room server** (realtime): `npm run deploy:party` (needs a free Cloudflare
-   account; `wrangler login` on first run walks you through it). Note the
-   deployed host, e.g. `roomful.<your-subdomain>.workers.dev`.
-2. **Next.js** (UI): deploy to Vercel as usual, with one env var:
-   `NEXT_PUBLIC_PARTYKIT_HOST=roomful.<your-subdomain>.workers.dev`.
+Both halves deploy automatically on every push to `main`:
+
+- **Room server** (realtime): the `deploy-party` job in
+  [.github/workflows/ci.yml](.github/workflows/ci.yml) runs `wrangler deploy`
+  after lint/typecheck/test/build pass, authenticated with a
+  `CLOUDFLARE_API_TOKEN` repo secret.
+- **Next.js** (UI): Vercel's own Git integration deploys on push.
+
+First-time setup (one-time, by whoever owns the Cloudflare/Vercel accounts):
+
+1. `npm run deploy:party` once locally (`wrangler login` on first run walks
+   you through creating the free Cloudflare account). Note the deployed
+   host, e.g. `roomful.<your-subdomain>.workers.dev`.
+2. Add that same host as `NEXT_PUBLIC_PARTYKIT_HOST` in Vercel's env vars.
+3. Add a Cloudflare API token as the `CLOUDFLARE_API_TOKEN` GitHub Actions
+   secret so CI can deploy the worker on future merges.
 
 Players never create accounts anywhere; only the deployer needs the two free
 accounts.
-
-### Redeploying after a change
-
-These two deploy on different triggers, and that trips people up:
-
-| What changed | What needs deploying |
-| --- | --- |
-| UI, routes, styles, a single-device game | Vercel only, automatic on push to `main` |
-| A multi-user game's `server.ts`, a `server-registry.ts` entry, anything in `party/` | Vercel **plus** `npm run deploy:party` |
-
-Vercel redeploys itself on every push. The room server never does; it only
-updates when someone runs `npm run deploy:party`.
-
-Multi-user game logic is bundled into the room server, not into Next. So
-merging a new multi-user game without that second command puts its card on
-the homepage while the room server still has no logic for it, and the host
-gets `No multi-user game "<id>"` when they press Start.
 
 ## Contributing
 
