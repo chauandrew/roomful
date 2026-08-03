@@ -2,6 +2,7 @@
   "name": "roomful",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "run-p dev:next dev:party",
     "dev:next": "next dev",

@@ -71,11 +71,22 @@ No shared code changes needed.
 
 ## Deploying
 
-1. **Room server** (realtime): `npm run deploy:party` (needs a free Cloudflare
-   account; `wrangler login` on first run walks you through it). Note the
-   deployed host, e.g. `roomful.<your-subdomain>.workers.dev`.
-2. **Next.js** (UI): deploy to Vercel as usual, with one env var:
-   `NEXT_PUBLIC_PARTYKIT_HOST=roomful.<your-subdomain>.workers.dev`.
+Both halves deploy automatically on every push to `main`:
+
+- **Room server** (realtime): the `deploy-party` job in
+  [.github/workflows/ci.yml](.github/workflows/ci.yml) runs `wrangler deploy`
+  after lint/typecheck/test/build pass, authenticated with a
+  `CLOUDFLARE_API_TOKEN` repo secret.
+- **Next.js** (UI): Vercel's own Git integration deploys on push.
+
+First-time setup (one-time, by whoever owns the Cloudflare/Vercel accounts):
+
+1. `npm run deploy:party` once locally (`wrangler login` on first run walks
+   you through creating the free Cloudflare account). Note the deployed
+   host, e.g. `roomful.<your-subdomain>.workers.dev`.
+2. Add that same host as `NEXT_PUBLIC_PARTYKIT_HOST` in Vercel's env vars.
+3. Add a Cloudflare API token as the `CLOUDFLARE_API_TOKEN` GitHub Actions
+   secret so CI can deploy the worker on future merges.
 
 Players never create accounts anywhere; only the deployer needs the two free
 accounts.
@@ -84,3 +95,7 @@ accounts.
 
 PRs for new games are very welcome — that's the whole point of the plugin
 design. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+MIT — see [LICENSE](LICENSE). Contributions are accepted under the same terms.
