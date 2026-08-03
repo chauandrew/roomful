@@ -29,6 +29,11 @@ npm run typecheck
 npm run lint
 ```
 
+If your game has pure-logic unit tests (see e.g. `games/reflex-runner/*.test.ts`),
+add a `test:<your-game>` script to `package.json` and a matching line in
+`.github/workflows/ci.yml` and `.githooks/pre-push` — that's how the existing
+games are wired up, there's no auto-discovery.
+
 Playtest multi-user games with extra browser tabs as players (each tab is an
 independent player thanks to per-tab sessionStorage), and check both screens:
 the projector view from across the room, the player view on a narrow phone

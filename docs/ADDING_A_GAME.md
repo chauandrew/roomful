@@ -167,6 +167,8 @@ during server-side rendering.
 ## 5. Checklist before you PR
 
 - [ ] `npm run typecheck` and `npm run lint` pass
+- [ ] If you wrote unit tests, added a `test:<your-game>` script plus a
+      matching line in `.github/workflows/ci.yml` and `.githooks/pre-push`
 - [ ] Playtested locally with `npm run dev` + two extra browser tabs as players
 - [ ] Refreshing the host tab mid-game reclaims the room; refreshing a player
       tab reclaims the seat (you get both for free — just don't key anything
