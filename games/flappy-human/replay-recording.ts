@@ -14,7 +14,8 @@
  */
 import { readFileSync } from "node:fs";
 import { FlapDetector, isBodyVisible } from "./detector";
-import type { RecordedSample } from "./recorder";
+import type { RecordedSample } from "@/lib/tracking/recorder";
+import type { Landmark } from "@/lib/tracking/types";
 
 const path = process.argv[2];
 if (!path) {
@@ -22,7 +23,7 @@ if (!path) {
   process.exit(1);
 }
 
-const { samples } = JSON.parse(readFileSync(path, "utf8")) as { samples: RecordedSample[] };
+const { samples } = JSON.parse(readFileSync(path, "utf8")) as { samples: RecordedSample<Landmark[] | null>[] };
 if (samples.length < 2) {
   console.error(`Recording has only ${samples.length} sample(s) — nothing meaningful to replay.`);
   process.exit(1);
@@ -40,9 +41,9 @@ for (const sample of samples) {
   const dtMs = Math.max(1, sample.tMs - prevTMs);
   prevTMs = sample.tMs;
 
-  if (sample.landmarks && !isBodyVisible(sample.landmarks)) notVisibleCount += 1;
+  if (sample.data && !isBodyVisible(sample.data)) notVisibleCount += 1;
 
-  const { flapped } = detector.update(sample.landmarks, dtMs);
+  const { flapped } = detector.update(sample.data, dtMs);
   if (flapped) {
     flapCount += 1;
     const tSec = ((sample.tMs - t0) / 1000).toFixed(2);

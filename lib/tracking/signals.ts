@@ -36,6 +36,38 @@ export function isVisible(
   return requiredIndices.every((i) => (landmarks[i]?.visibility ?? 0) >= threshold);
 }
 
+/**
+ * Debounces raw per-frame visibility into a sticky "is the subject still
+ * here" signal. Motion blur can tank landmark visibility scores for a few
+ * frames even though the subject never left, so a loss only becomes real
+ * once it's persisted continuously for graceMs — mirroring the hand
+ * tracker's maxGapMs dropout tolerance (lib/fruit-ninja/handTracker.ts).
+ * Recovery is immediate (one visible frame is enough); only loss is
+ * debounced.
+ */
+export class VisibilityGate {
+  private visible = false;
+  private lostForMs = 0;
+
+  constructor(private graceMs: number) {}
+
+  update(rawVisible: boolean, dtMs: number): boolean {
+    if (rawVisible) {
+      this.visible = true;
+      this.lostForMs = 0;
+    } else if (this.visible) {
+      this.lostForMs += dtMs;
+      if (this.lostForMs >= this.graceMs) this.visible = false;
+    }
+    return this.visible;
+  }
+
+  reset() {
+    this.visible = false;
+    this.lostForMs = 0;
+  }
+}
+
 // FaceLandmarker's mouth/eye-corner indices, standard MediaPipe FaceMesh topology.
 const UPPER_INNER_LIP = 13;
 const LOWER_INNER_LIP = 14;

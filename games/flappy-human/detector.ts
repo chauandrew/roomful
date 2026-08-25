@@ -53,7 +53,7 @@
  * the motion, flattening it. Working in real time keeps detection consistent
  * regardless of camera performance.
  */
-import { MovingAverage, isVisible } from "@/lib/tracking/signals";
+import { MovingAverage, isVisible, VisibilityGate } from "@/lib/tracking/signals";
 import type { Landmark } from "@/lib/tracking/types";
 import { CONFIG } from "./config";
 
@@ -106,6 +106,7 @@ type Phase = "idle" | "pendingStart" | "swinging" | "cooldown";
 export class FlapDetector {
   private lWristMA!: MovingAverage;
   private rWristMA!: MovingAverage;
+  private visibilityGate = new VisibilityGate(CONFIG.VISIBILITY_GRACE_MS);
 
   private prevL: number | null = null;
   private prevR: number | null = null;
@@ -127,6 +128,7 @@ export class FlapDetector {
   reset() {
     this.lWristMA = new MovingAverage(CONFIG.SMOOTHING_WINDOW);
     this.rWristMA = new MovingAverage(CONFIG.SMOOTHING_WINDOW);
+    this.visibilityGate.reset();
 
     this.prevL = null;
     this.prevR = null;
@@ -144,10 +146,14 @@ export class FlapDetector {
 
   /** `dtMs` is the real elapsed time since the previous call, so velocity/timing are frame-rate independent. */
   update(landmarks: Landmark[] | undefined | null, dtMs: number): DetectorResult {
-    if (!landmarks) return { detected: false, visible: false, flapped: false };
-
-    const visible = isBodyVisible(landmarks);
-    if (!visible) return { detected: true, visible: false, flapped: false };
+    // The gate advances on every call (even with no landmarks at all) so its
+    // grace clock keeps counting through a total dropout, not just a
+    // below-threshold one — see VisibilityGate for why a blur-induced dip
+    // shouldn't instantly report the player lost.
+    const rawVisible = isBodyVisible(landmarks);
+    const visible = this.visibilityGate.update(rawVisible, dtMs);
+    if (!landmarks) return { detected: false, visible, flapped: false };
+    if (!rawVisible) return { detected: true, visible, flapped: false };
 
     const lSh = landmarks[IDX.L_SHOULDER];
     const rSh = landmarks[IDX.R_SHOULDER];

@@ -19,6 +19,8 @@ import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame } from "@/lib/tracking/drawPose";
 import type { HandResult } from "@/lib/tracking/types";
 import { createHandTracker, updateHandTracker, type HandDetection, type HandSlot } from "@/lib/fruit-ninja/handTracker";
+import { handSpan, MIN_HAND_SPAN, INDEX_FINGERTIP } from "@/lib/fruit-ninja/handSelection";
+import { HandRecorder } from "./recorder";
 import { createSpawnState, spawnDue, updateEntities, type Entity, type SpawnConfig } from "@/lib/fruit-ninja/physics";
 import { detectSlices, type ComboConfig } from "@/lib/fruit-ninja/detector";
 import { drawEntities, drawSplashes, drawHandTrails, type Splash } from "@/lib/fruit-ninja/draw";
@@ -28,8 +30,6 @@ import { drawHud, HAND_COLORS } from "./hud";
 import { unlockAudio, playSliceSound, playBombSound, playMissSound, playGameOverSound } from "./sound";
 import { playBgm, stopBgm } from "@/lib/audio";
 import { getBest, setBest } from "./leaderboard";
-
-const INDEX_FINGERTIP = 8;
 
 type Stage = "IDLE" | "CAMERA_CHECK" | "COUNTDOWN" | "PLAYING" | "RESULTS";
 
@@ -58,6 +58,7 @@ export default function Play() {
   const [finalScore, setFinalScore] = useState(0);
   const [isNewBest, setIsNewBest] = useState(false);
   const [endReason, setEndReason] = useState<"bomb" | "lives" | "time">("time");
+  const [recordingSampleCount, setRecordingSampleCount] = useState(0);
 
   const trackerRef = useRef(createHandTracker());
   const spawnRef = useRef(createSpawnState());
@@ -69,6 +70,9 @@ export default function Play() {
   const lastFrameTRef = useRef(0);
   const endingRef = useRef(false);
   const handleResultRef = useRef<(result: HandResult | null) => void>(() => {});
+  const recorderRef = useRef<HandRecorder | null>(null);
+  if (recorderRef.current === null) recorderRef.current = new HandRecorder();
+  const lastResultRef = useRef<HandResult | null>(null);
 
   // useHandTracking needs a stable onResult reference at call time, but the
   // real handler (below) needs videoRef/canvasRef that useHandTracking
@@ -82,6 +86,8 @@ export default function Play() {
     endingRef.current = true;
     playGameOverSound();
     setStage("RESULTS");
+    recorderRef.current!.stop();
+    setRecordingSampleCount(recorderRef.current!.sampleCount);
 
     const value = scoreRef.current;
     setFinalScore(value);
@@ -104,9 +110,25 @@ export default function Play() {
       drawMirroredVideoFrame(ctx, video, canvas);
 
       const now = performance.now();
+      const aspect = canvas.width / canvas.height;
       const hands = result?.landmarks ?? [];
+      // Recorder captures MediaPipe's raw, pre-filter output (full landmarks,
+      // before the span check below discards anything) so a downloaded
+      // recording can tell "MediaPipe found nothing" apart from "MediaPipe
+      // found something small and MIN_HAND_SPAN rejected it" — one sample per
+      // genuinely new camera frame, not one per rAF call (this loop, unlike
+      // flappy-human's, otherwise runs the whole pipeline on stale repeats
+      // too — see useMediaPipeTracking's onResult).
+      if (result !== lastResultRef.current) {
+        lastResultRef.current = result;
+        recorderRef.current!.record(
+          hands.map((landmarks, i) => ({ landmarks, handedness: result?.handedness?.[i]?.[0]?.categoryName })),
+          now
+        );
+      }
       const detections = hands
         .map((landmarks, i): HandDetection | null => {
+          if (handSpan(landmarks, aspect) < MIN_HAND_SPAN) return null; // too small to be a player's hand — likely someone in the background
           const tip = landmarks[INDEX_FINGERTIP];
           if (!tip) return null;
           return { x: tip.x, y: tip.y, handedness: result?.handedness?.[i]?.[0]?.categoryName };
@@ -139,7 +161,7 @@ export default function Play() {
           playMissSound();
         }
 
-        const slices = detectSlices(trackerRef.current, entities, now, sinceT, canvas.width / canvas.height, COMBO_CONFIG);
+        const slices = detectSlices(trackerRef.current, entities, now, sinceT, aspect, COMBO_CONFIG);
         const fruitCount = slices.hits.reduce((sum, h) => sum + h.fruitCount, 0);
         const comboBonus = slices.hits.reduce((sum, h) => sum + h.comboBonus, 0);
         if (fruitCount > 0) {
@@ -209,6 +231,7 @@ export default function Play() {
     endingRef.current = false;
     playStartRef.current = performance.now();
     lastFrameTRef.current = playStartRef.current;
+    recorderRef.current!.start();
     setStage("PLAYING");
   }, []);
 
@@ -299,6 +322,15 @@ export default function Play() {
           >
             Play again
           </button>
+
+          {process.env.NODE_ENV !== "production" && (
+            <button
+              onClick={() => recorderRef.current!.download()}
+              className="text-sm text-zinc-400 underline hover:text-zinc-600"
+            >
+              Download hand recording ({recordingSampleCount} samples, dev)
+            </button>
+          )}
         </div>
       )}
 

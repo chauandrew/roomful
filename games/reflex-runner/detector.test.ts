@@ -167,7 +167,45 @@ test("update() before calibrate() does not throw and returns neutral output", ()
   assert.equal(r.ducking, false);
   assert.equal(r.jumped, false);
 
-  // Also safe with no landmarks at all.
+  // Also safe with no landmarks at all. A single missing-landmarks frame is
+  // a below-VISIBILITY_GRACE_MS blip, held through rather than instantly
+  // reported lost (see VisibilityGate) — only once the loss persists past
+  // the grace window does it flip to lost.
   const r2 = d.update(undefined, 20);
-  assert.equal(r2.visible, false);
+  assert.equal(r2.visible, true);
+
+  let r3 = r2;
+  for (let elapsed = 20; elapsed < CONFIG.VISIBILITY_GRACE_MS + 20; elapsed += 20) {
+    r3 = d.update(undefined, 20);
+  }
+  assert.equal(r3.visible, false);
+});
+
+test("a brief motion-blur dropout mid-lane is held through, not reported lost", () => {
+  const d = calibrated();
+  settle(d, CONFIG.LANE_ENTER_THRESHOLD + 0.05, 0);
+  const r1 = d.update(frame(CONFIG.LANE_ENTER_THRESHOLD + 0.05, 0), 20);
+  assert.equal(r1.visible, true);
+  assert.equal(r1.lane, 2);
+
+  // Landmarks vanish entirely for one frame, well under the grace window —
+  // lane must be held, not reset to center.
+  const r2 = d.update(undefined, 20);
+  assert.equal(r2.visible, true);
+  assert.equal(r2.lane, 2);
+
+  const r3 = d.update(frame(CONFIG.LANE_ENTER_THRESHOLD + 0.05, 0), 20);
+  assert.equal(r3.visible, true);
+  assert.equal(r3.lane, 2);
+});
+
+test("visibility reports lost only once a dropout persists past VISIBILITY_GRACE_MS", () => {
+  const d = calibrated();
+  d.update(frame(0, 0), 20);
+
+  let last;
+  for (let elapsed = 0; elapsed < CONFIG.VISIBILITY_GRACE_MS + 20; elapsed += 20) {
+    last = d.update(undefined, 20);
+  }
+  assert.equal(last!.visible, false);
 });

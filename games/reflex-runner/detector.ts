@@ -16,7 +16,7 @@
  * JUMP_CONFIRM_MS, fires once, then a cooldown blocks a re-fire off the same
  * physical jump.
  */
-import { MovingAverage, isVisible } from "@/lib/tracking/signals";
+import { MovingAverage, isVisible, VisibilityGate } from "@/lib/tracking/signals";
 import type { Landmark } from "@/lib/tracking/types";
 import { CONFIG } from "./config";
 
@@ -63,6 +63,7 @@ class HoldTimer {
 export class RunnerDetector {
   private leanXMA!: MovingAverage;
   private duckYMA!: MovingAverage;
+  private visibilityGate = new VisibilityGate(CONFIG.VISIBILITY_GRACE_MS);
 
   private baselineX: number | null = null;
   private baselineY: number | null = null;
@@ -81,6 +82,7 @@ export class RunnerDetector {
   reset() {
     this.leanXMA = new MovingAverage(CONFIG.SMOOTHING_WINDOW);
     this.duckYMA = new MovingAverage(CONFIG.SMOOTHING_WINDOW);
+    this.visibilityGate.reset();
 
     this.baselineX = null;
     this.baselineY = null;
@@ -113,10 +115,15 @@ export class RunnerDetector {
 
   /** `dtMs` is the real elapsed time since the previous call, so timing is frame-rate independent. */
   update(landmarks: Landmark[] | undefined | null, dtMs: number): DetectorResult {
-    if (!landmarks) return { visible: false, lane: this.lane, ducking: this.ducking, jumped: false };
-
-    const visible = isBodyVisible(landmarks);
-    if (!visible) return { visible: false, lane: this.lane, ducking: this.ducking, jumped: false };
+    // The gate advances on every call (even with no landmarks at all) so its
+    // grace clock keeps counting through a total dropout, not just a
+    // below-threshold one. A blur-induced dip is usually gone within a
+    // couple of frames, so we hold the last known lane/duck through the
+    // grace window rather than reporting "lost" (and freezing the runner)
+    // on every transient dip — see VisibilityGate for the rationale.
+    const rawVisible = isBodyVisible(landmarks);
+    const visible = this.visibilityGate.update(rawVisible, dtMs);
+    if (!landmarks || !rawVisible) return { visible, lane: this.lane, ducking: this.ducking, jumped: false };
 
     if (this.baselineX === null || this.baselineY === null) {
       // Not calibrated yet (e.g. still on the camera-check/countdown screen).
