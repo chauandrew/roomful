@@ -15,7 +15,11 @@ export const CONFIG = {
   SPAWN_INTERVAL_START_MS: 1000, // time between launches at 0:00
   SPAWN_INTERVAL_END_MS: 346, // time between launches at 0:45
   LAUNCH_SPEED_START: 1.4, // upward launch speed at 0:00, screen-heights/s (peaks ~80% up the frame)
-  LAUNCH_SPEED_END: 1.65, // upward launch speed at 0:45 (briefly clears the top of the frame)
+  LAUNCH_SPEED_END: 1.5, // upward launch speed at 0:45, screen-heights/s (peaks ~90% up the frame)
+  // Was 1.65 (apex above y=0, off-camera) — real recordings showed hands
+  // leaving the camera's field of view chasing high fruit as the dominant
+  // cause of tracking dropout, far more than motion blur. See
+  // games/fruit-ninja/replay-recording.ts.
   LAUNCH_VX_MAX: 0.25, // max sideways drift, screen-widths/s, aimed loosely toward center
   SPAWN_X_MARGIN: 0.15, // fraction of width kept clear of each edge at launch
   BOMB_PROBABILITY: 0.15, // chance any given launch is a bomb instead of fruit

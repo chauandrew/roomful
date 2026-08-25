@@ -1,7 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { detectSlices, type ComboConfig } from "./detector";
-import { createHandTracker, updateHandTracker, type HandSlot, type TrailPoint } from "./handTracker";
+import {
+  createHandTracker,
+  updateHandTracker,
+  DEFAULT_TRACKER_TUNING,
+  type HandSlot,
+  type TrailPoint,
+} from "./handTracker";
 import type { Entity } from "./physics";
 
 // Values mirror games/fruit-ninja/config.ts so this suite's expectations
@@ -114,10 +120,11 @@ test("stale trail segments older than sinceT never re-trigger a slice", () => {
 test("dead-reckoned bridge segment slices a fruit sitting in the dropout path", () => {
   // Fast swipe (0.005 units/ms) tracked for 3 frames, then the camera drops
   // it for 96ms. The tested window (sinceT=112, now=128) lies entirely inside
-  // the gap, 80-96ms past the last real point — deep past where the old
-  // displacement-clamp bug saturated (0.005 * 40ms = MAX drift), which would
-  // have collapsed the bridge to the single point x=0.46 and missed this
-  // fruit by 0.083. The speed-capped bridge sweeps x 0.3667 -> 0.388.
+  // the gap, 80-96ms past the last real point. This swipe speed is below the
+  // current MAX_DEAD_RECKON_SPEED cap, so the bridge tracks its true,
+  // uncapped velocity — the pre-fix cap (deadReckonMaxDrift 0.2 / maxGapMs
+  // 150 = 0.00133 units/ms) would have throttled it to under a third of its
+  // real speed and missed a fruit sitting at the true position.
   let s = createHandTracker();
   for (let i = 0; i < 3; i++) {
     s = updateHandTracker(s, [{ x: 0.1 + 0.08 * i, y: 0.5 }], i * 16);
@@ -126,12 +133,16 @@ test("dead-reckoned bridge segment slices a fruit sitting in the dropout path", 
   assert.equal(s[0].active, true);
   assert.equal(s[0].sawGap, true);
 
-  const maxSpeed = 0.2 / 150; // DEFAULT_TRACKER_TUNING.deadReckonMaxDrift / maxGapMs
-  const bridgeStartX = 0.26 + maxSpeed * 80;
-  const bridgeEndX = 0.26 + maxSpeed * 96;
-  const f = fruit(0.377, 0.5);
-  assert.ok(bridgeStartX < f.x && f.x < bridgeEndX); // fruit sits inside the swept span
-  assert.ok(Math.abs(0.26 + 0.2 - f.x) > R); // old clamped point misses
+  const trueSpeed = 0.005; // units/ms, matches the tracked swipe above
+  const currentCap = DEFAULT_TRACKER_TUNING.deadReckonMaxDrift / DEFAULT_TRACKER_TUNING.maxGapMs;
+  assert.ok(trueSpeed < currentCap, "test assumes this swipe speed is below the current dead-reckon cap");
+  const oldCappedSpeed = 0.2 / 150; // pre-fix deadReckonMaxDrift / maxGapMs
+
+  const bridgeStartX = 0.26 + trueSpeed * 80;
+  const bridgeEndX = 0.26 + trueSpeed * 96;
+  const f = fruit((bridgeStartX + bridgeEndX) / 2, 0.5);
+  assert.ok(bridgeStartX < f.x && f.x < bridgeEndX); // fruit sits inside the true swept span
+  assert.ok(Math.abs(0.26 + oldCappedSpeed * 96 - f.x) > R); // the old under-capped bridge would have missed it
 
   const r = detectSlices(s, [f], 128, 112, 1, COMBO);
   assert.equal(r.slicedFruit.length, 1);

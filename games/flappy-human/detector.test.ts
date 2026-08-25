@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FlapDetector } from "./detector";
+import { CONFIG } from "./config";
 import type { Landmark } from "@/lib/tracking/types";
 
 /** A visible landmark at (x, y) — visibility comfortably clears CONFIG.VISIBILITY_THRESHOLD. */
@@ -86,4 +87,30 @@ test("small still-arm jitter never fires a flap", () => {
   const sequence = segments(dt, Array(4).fill(parts).flat());
 
   assert.equal(countFlaps(sequence), 0);
+});
+
+test("a brief motion-blur dropout is held through, not reported lost", () => {
+  const d = new FlapDetector();
+  const r1 = d.update(frame(0), 20);
+  assert.equal(r1.visible, true);
+
+  // Landmarks vanish entirely for one frame, well under the grace window.
+  const r2 = d.update(undefined, 20);
+  assert.equal(r2.detected, false);
+  assert.equal(r2.visible, true);
+
+  // Recovery is immediate once landmarks return.
+  const r3 = d.update(frame(0.01), 20);
+  assert.equal(r3.visible, true);
+});
+
+test("visibility reports lost only once a dropout persists past VISIBILITY_GRACE_MS", () => {
+  const d = new FlapDetector();
+  d.update(frame(0), 20);
+
+  let last;
+  for (let elapsed = 0; elapsed < CONFIG.VISIBILITY_GRACE_MS + 20; elapsed += 20) {
+    last = d.update(undefined, 20);
+  }
+  assert.equal(last!.visible, false);
 });

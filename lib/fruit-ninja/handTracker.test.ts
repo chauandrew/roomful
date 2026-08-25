@@ -56,6 +56,43 @@ test("velocity estimate converges to the true constant velocity", () => {
   assert.ok(Math.abs(state[0].vy! - 0.001) < 1e-12);
 });
 
+test("a direction reversal snaps velocity to the fresh sample instead of blending through it", () => {
+  // Settle a rightward EMA, then reverse hard on a single frame.
+  let { state: s } = feedLine(createHandTracker(), { x: 0.5, y: 0.5 }, { vx: 0.002, vy: 0 }, 0, 6);
+  assert.ok(s[0].vx! > 0.0015); // settled near the true rightward velocity
+
+  const last = s[0].trail[s[0].trail.length - 1];
+  const reverseIvx = -0.003;
+  const dt = 16;
+  s = updateHandTracker(s, [{ x: last.x + reverseIvx * dt, y: 0.5 }], last.t + dt);
+
+  // A blend (half the old positive EMA, half the new negative sample) would
+  // still read positive here; the fix snaps straight to the fresh sample, so
+  // a predictPosition call right after this doesn't extrapolate the stale
+  // (pre-reversal) direction.
+  assert.ok(s[0].vx! < 0, `expected vx to flip negative on reversal, got ${s[0].vx}`);
+  assert.ok(Math.abs(s[0].vx! - reverseIvx) < 1e-9);
+});
+
+test("a slow apparent reversal (jitter-level speed) does not snap — falls back to the normal blend", () => {
+  // Both the settled speed and the reversing sample sit well below
+  // MIN_REVERSAL_SPEED: this is what a near-stationary hand's natural
+  // jitter looks like, not a real swipe. Regression for snapping to raw
+  // jitter, which measurably made velocity noisier at low speed (see
+  // MIN_REVERSAL_SPEED's comment).
+  let { state: s } = feedLine(createHandTracker(), { x: 0.5, y: 0.5 }, { vx: 0.0003, vy: 0 }, 0, 6);
+  const settledVx = s[0].vx!;
+  assert.ok(settledVx > 0 && settledVx < DEFAULT_TRACKER_TUNING.maxMatchDistance);
+
+  const last = s[0].trail[s[0].trail.length - 1];
+  const reverseIvx = -0.0002;
+  const dt = 16;
+  s = updateHandTracker(s, [{ x: last.x + reverseIvx * dt, y: 0.5 }], last.t + dt);
+
+  const expectedBlend = settledVx + (reverseIvx - settledVx) * DEFAULT_TRACKER_TUNING.velocitySmoothing;
+  assert.ok(Math.abs(s[0].vx! - expectedBlend) < 1e-9, `expected the normal blend, got ${s[0].vx}`);
+});
+
 test("fast swipe surviving a multi-frame dropout re-matches the same slot, bridged", () => {
   // 0.003 units/ms for 96ms of dropout = 0.288 raw travel, beyond
   // maxMatchDistance (0.25) — only prediction-based matching can bridge it.
@@ -138,27 +175,31 @@ test("predictPosition extrapolates a sub-cap constant velocity exactly", () => {
 });
 
 test("predictPosition is strictly monotonic in atTime past the speed cap", () => {
-  // Regression for the displacement-clamp bug: vx=0.005 saturates the old
-  // deadReckonMaxDrift displacement cap by dt=40ms, so dt=60 and dt=100
-  // used to collapse onto the identical point (zero-length bridge segment).
+  // Regression for the displacement-clamp bug: a velocity above the speed
+  // cap used to saturate the old displacement-cap formula by dt=40ms, so
+  // dt=60 and dt=100 collapsed onto the identical point (zero-length bridge
+  // segment). vx is well above MAX_DEAD_RECKON_SPEED so the cap is exercised.
   const maxSpeed = DEFAULT_TRACKER_TUNING.deadReckonMaxDrift / DEFAULT_TRACKER_TUNING.maxGapMs;
   const slot = {
     active: true,
     trail: [{ x: 0.3, y: 0.5, t: 1000, bridged: false }],
     lastSeen: 1000,
     sawGap: true,
-    vx: 0.005,
+    vx: 0.05,
     vy: 0,
   };
-  assert.ok(0.005 > maxSpeed);
+  assert.ok(0.05 > maxSpeed);
   const p60 = predictPosition(slot, 1060)!;
   const p100 = predictPosition(slot, 1100)!;
   assert.notDeepEqual(p60, p100);
   assert.ok(Math.abs(p60.x - (0.3 + maxSpeed * 60)) < 1e-12);
   assert.ok(Math.abs(p100.x - (0.3 + maxSpeed * 100)) < 1e-12);
 
+  // dt is kept below where 0.3 + maxSpeed*dt would hit the [0,1] output
+  // clamp (see the separate "stays clamped" test for that boundary case) —
+  // this loop is purely about the speed cap's own monotonicity.
   let prev = -Infinity;
-  for (const dt of [10, 40, 80, 120, 150]) {
+  for (const dt of [10, 40, 80, 100]) {
     const x = predictPosition(slot, 1000 + dt)!.x;
     assert.ok(x > prev);
     prev = x;

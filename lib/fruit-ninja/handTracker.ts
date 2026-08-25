@@ -33,6 +33,7 @@ export type { HandDetection, HandSlot, TrailPoint } from "./types";
 export interface TrackerTuning {
   maxMatchDistance: number;
   maxPredictionError: number;
+  maxPredictionErrorFraction: number;
   velocitySmoothing: number;
   deadReckonMaxDrift: number;
   maxGapMs: number;
@@ -46,11 +47,23 @@ export const DEFAULT_TRACKER_TUNING: TrackerTuning = {
   maxMatchDistance: 0.25, // fallback match radius (normalized 0-1) for slots with no velocity estimate yet
   // (a fast swipe can cross ~1/4 of the frame during a short dropout; two
   // players' hands are rarely that close, so this rarely mis-merges)
-  maxPredictionError: 0.1, // max distance from a slot's constant-velocity predicted position
+  maxPredictionError: 0.1, // base max distance from a slot's constant-velocity predicted position
   // (measures how much the swipe curved/decelerated during the gap, not raw
-  // travel, so it can be much tighter than maxMatchDistance)
+  // travel, so it starts much tighter than maxMatchDistance — but see
+  // maxPredictionErrorFraction below, which scales this up for fast swipes)
+  maxPredictionErrorFraction: 0.35, // extra tolerance as a fraction of the predicted travel distance itself
+  // (a 2-sample EMA velocity lags real acceleration, so the faster/longer a
+  // swipe's dropout, the further a flat tolerance under-predicts curvature —
+  // this scales the tolerance with predicted travel so a fast reappearing
+  // swipe isn't rejected as a new hand. Starting value, retune from real
+  // recordings via games/fruit-ninja/replay-recording.ts)
   velocitySmoothing: 0.5, // blend of newest frame-to-frame velocity into the running estimate (higher = more responsive, noisier)
-  deadReckonMaxDrift: 0.2, // cap on extrapolated ghost-dot travel mid-dropout so a noisy velocity estimate can't fling it off-screen
+  deadReckonMaxDrift: 0.9, // cap on extrapolated ghost-dot travel mid-dropout so a noisy velocity estimate can't fling it off-screen
+  // (this sets MAX_DEAD_RECKON_SPEED = 0.9/150 = 0.006 units/ms — a hand
+  // crossing the full frame in ~170ms. The old value of 0.2 capped speed at
+  // 0.00133 units/ms, 3-4x slower than a real fast swipe, which made the
+  // blade under-travel and lag behind the hand during exactly the dropouts
+  // it exists to bridge. Starting value, retune from real recordings.)
   maxGapMs: 150, // how long a slot survives with no detection before retiring (~4-9 frames)
   trailLength: 8, // recent fingertip points kept per slot
 };
@@ -61,6 +74,12 @@ const MAX_SLOTS = 4;
 // Below this speed (normalized units/ms) direction is mostly jitter, so the
 // trajectory tie-breaker stays out of it.
 const MIN_TIEBREAK_SPEED = 0.0001;
+// Both the pre- and post-reversal speed must clear this before a velocity
+// "reversal" is trusted enough to snap to (see updateHandTracker). Measured
+// from a real recording: a whole session of natural jitter never produced a
+// same-sign-flip event with both speeds above ~0.001, while genuine swipes
+// across multiple recordings commonly reach 0.002-0.005.
+const MIN_REVERSAL_SPEED = 0.001;
 
 export function createHandTracker(): HandTrackerState {
   return [];
@@ -128,7 +147,13 @@ export function updateHandTracker(
     const dt = now - slot.lastSeen;
     const predX = hasVel ? last.x + vx * dt : last.x;
     const predY = hasVel ? last.y + vy * dt : last.y;
-    const maxDist = hasVel ? tuning.maxPredictionError : tuning.maxMatchDistance;
+    // Tolerance scales with predicted travel: the further a slot was
+    // extrapolated to move during the gap, the more curvature/deceleration
+    // error a lagging EMA velocity estimate can accumulate.
+    const predictedTravel = hasVel ? Math.hypot(vx, vy) * dt : 0;
+    const maxDist = hasVel
+      ? tuning.maxPredictionError + tuning.maxPredictionErrorFraction * predictedTravel
+      : tuning.maxMatchDistance;
     detections.forEach((det, di) => {
       const dist = Math.hypot(det.x - predX, det.y - predY);
       if (dist > maxDist) return;
@@ -182,8 +207,28 @@ export function updateHandTracker(
       const dt = now - last.t;
       const ivx = (det.x - last.x) / dt;
       const ivy = (det.y - last.y) / dt;
-      slot.vx = slot.vx === undefined ? ivx : slot.vx + (ivx - slot.vx) * tuning.velocitySmoothing;
-      slot.vy = slot.vy === undefined ? ivy : slot.vy + (ivy - slot.vy) * tuning.velocitySmoothing;
+      // A real direction reversal (e.g. a slice's back-and-forth) blended at
+      // the usual rate leaves the EMA pointing halfway between the old and
+      // new direction for a couple of frames — exactly wrong if a dead-reckon
+      // prediction (predictPosition, used the instant a frame is missed) gets
+      // built from it. Snap straight to the fresh sample instead of blending
+      // through a genuine reversal. Gated on both speeds clearing
+      // MIN_REVERSAL_SPEED: a stationary hand's natural jitter flips sign
+      // constantly at near-zero speed, and without a floor this fired ~80
+      // times in one 21s recording (measured via replay-recording.ts) with
+      // essentially none of them a real swipe — snapping to raw jitter there
+      // made the velocity noisier, not more responsive. Below the floor,
+      // fall back to the normal blend.
+      const oldSpeed = slot.vx !== undefined && slot.vy !== undefined ? Math.hypot(slot.vx, slot.vy) : 0;
+      const iSpeed = Math.hypot(ivx, ivy);
+      const reversed =
+        slot.vx !== undefined &&
+        slot.vy !== undefined &&
+        oldSpeed > MIN_REVERSAL_SPEED &&
+        iSpeed > MIN_REVERSAL_SPEED &&
+        slot.vx * ivx + slot.vy * ivy < 0;
+      slot.vx = slot.vx === undefined || reversed ? ivx : slot.vx + (ivx - slot.vx) * tuning.velocitySmoothing;
+      slot.vy = slot.vy === undefined || reversed ? ivy : slot.vy + (ivy - slot.vy) * tuning.velocitySmoothing;
     }
     slot.trail.push({ x: det.x, y: det.y, t: now, bridged: slot.sawGap });
     if (slot.trail.length > tuning.trailLength) slot.trail.shift();

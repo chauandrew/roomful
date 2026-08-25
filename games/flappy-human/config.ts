@@ -5,6 +5,7 @@
 export const CONFIG = {
   // --- Pose / detection ---
   VISIBILITY_THRESHOLD: 0.5, // min landmark visibility (0..1) before we count anything
+  VISIBILITY_GRACE_MS: 200, // how long visibility may stay below threshold (e.g. motion blur) before we report the player lost
   MIN_SHOULDER_WIDTH: 0.05, // floor for shoulder-width normalization (avoids divide-by-zero)
   SMOOTHING_WINDOW: 3, // moving-average frames for the vertical (y) arm signal
 

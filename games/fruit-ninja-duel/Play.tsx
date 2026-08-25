@@ -21,6 +21,7 @@ import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame } from "@/lib/tracking/drawPose";
 import type { HandResult } from "@/lib/tracking/types";
 import { createHandTracker, updateHandTracker, DEFAULT_TRACKER_TUNING, type HandDetection } from "@/lib/fruit-ninja/handTracker";
+import { handSpan, MIN_HAND_SPAN } from "@/lib/fruit-ninja/handSelection";
 import { createSpawnState, spawnDue, updateEntities, type Entity, type SpawnConfig } from "@/lib/fruit-ninja/physics";
 import { detectSlices, type ComboConfig } from "@/lib/fruit-ninja/detector";
 import { drawEntities, drawSplashes, drawHandTrails, type Splash } from "@/lib/fruit-ninja/draw";
@@ -96,9 +97,11 @@ export default function Play() {
       drawMirroredVideoFrame(ctx, video, canvas);
 
       const now = performance.now();
+      const aspect = canvas.width / canvas.height;
       const hands = result?.landmarks ?? [];
       const detections = hands
         .map((landmarks, i): HandDetection | null => {
+          if (handSpan(landmarks, aspect) < MIN_HAND_SPAN) return null; // too small to be a player's hand — likely someone in the background
           const tip = landmarks[INDEX_FINGERTIP];
           if (!tip) return null;
           return { x: tip.x, y: tip.y, handedness: result?.handedness?.[i]?.[0]?.categoryName };
@@ -127,7 +130,7 @@ export default function Play() {
         const updated = updateEntities(entitiesRef.current.concat(due.spawned), now - sinceT, CONFIG.GRAVITY);
         let entities = updated.entities;
 
-        const slices = detectSlices(trackerRef.current, entities, now, sinceT, canvas.width / canvas.height, COMBO_CONFIG);
+        const slices = detectSlices(trackerRef.current, entities, now, sinceT, aspect, COMBO_CONFIG);
         const scores = scoreRef.current;
         for (const h of slices.hits) {
           if (h.player === undefined) continue; // hand not yet claimed to a side — no score either way

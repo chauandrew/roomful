@@ -17,6 +17,7 @@
     "test:flappy-human": "tsx --test games/flappy-human/*.test.ts",
     "test:reflex-runner": "tsx --test games/reflex-runner/*.test.ts",
     "replay:flappy-human": "tsx games/flappy-human/replay-recording.ts",
+    "replay:fruit-ninja": "tsx games/fruit-ninja/replay-recording.ts",
     "deploy:party": "wrangler deploy"
   },
   "dependencies": {
