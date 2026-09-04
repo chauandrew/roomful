@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { PresenterLayout, ControlBar, BarButton } from "@/components/PresenterLayout";
 import { useHandTracking } from "@/lib/tracking/useHandTracking";
 import { useCountdown } from "@/lib/tracking/useCountdown";
+import { useCameraCheckAutoAdvance } from "@/lib/tracking/useCameraCheckAutoAdvance";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame } from "@/lib/tracking/drawPose";
 import type { HandResult } from "@/lib/tracking/types";
@@ -73,10 +74,6 @@ export default function Play() {
   const recorderRef = useRef<HandRecorder | null>(null);
   if (recorderRef.current === null) recorderRef.current = new HandRecorder();
   const lastResultRef = useRef<HandResult | null>(null);
-  // Tracks how long CAMERA_CHECK has seen hands continuously, so the round
-  // can start automatically once they've held still for READY_STABILITY_MS —
-  // mirrors reflex-runner/flappy-human's Play.tsx.
-  const cameraCheckStableSinceRef = useRef<number | null>(null);
 
   // useHandTracking needs a stable onResult reference at call time, but the
   // real handler (below) needs videoRef/canvasRef that useHandTracking
@@ -130,6 +127,11 @@ export default function Play() {
     startCountdownTimer();
   }, [startCountdownTimer]);
 
+  const { check: checkCameraStable, reset: resetCameraStable } = useCameraCheckAutoAdvance({
+    stabilityMs: CONFIG.READY_STABILITY_MS,
+    onReady: startRound,
+  });
+
   const handleResult = useCallback(
     (result: HandResult | null) => {
       const canvas = canvasRef.current;
@@ -170,14 +172,7 @@ export default function Play() {
         const visible = trackerRef.current.some((s) => s.active);
         setIsVisible(visible);
         drawHandTrails(ctx, canvas, trackerRef.current, now, colorForSlot);
-        if (!visible) {
-          cameraCheckStableSinceRef.current = null;
-        } else if (cameraCheckStableSinceRef.current === null) {
-          cameraCheckStableSinceRef.current = performance.now();
-        } else if (performance.now() - cameraCheckStableSinceRef.current >= CONFIG.READY_STABILITY_MS) {
-          cameraCheckStableSinceRef.current = null;
-          startRound();
-        }
+        checkCameraStable(visible);
         return;
       }
 
@@ -230,7 +225,7 @@ export default function Play() {
         else if (elapsed >= CONFIG.ROUND_DURATION_MS) endRound("time");
       }
     },
-    [stage, endRound, videoRef, canvasRef, startRound]
+    [stage, endRound, videoRef, canvasRef, checkCameraStable]
   );
 
   useEffect(() => {
@@ -263,7 +258,7 @@ export default function Play() {
 
   function enterCameraCheck() {
     unlockAudio();
-    cameraCheckStableSinceRef.current = null;
+    resetCameraStable();
     setStage("CAMERA_CHECK");
   }
 
@@ -271,7 +266,7 @@ export default function Play() {
   function exitToIdle() {
     countdown.cancel();
     scoreRef.current = 0;
-    cameraCheckStableSinceRef.current = null;
+    resetCameraStable();
     setStage("IDLE");
   }
 

@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { PresenterLayout, ControlBar, BarButton } from "@/components/PresenterLayout";
 import { useFaceTracking } from "@/lib/tracking/useFaceTracking";
 import { useCountdown } from "@/lib/tracking/useCountdown";
+import { useCameraCheckAutoAdvance } from "@/lib/tracking/useCameraCheckAutoAdvance";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame } from "@/lib/tracking/drawPose";
 import { MovingAverage, mouthOpenRatio } from "@/lib/tracking/signals";
@@ -80,10 +81,6 @@ export default function Play() {
   const playStartRef = useRef(0);
   const endingRef = useRef(false);
   const handleResultRef = useRef<(result: FaceResult | null) => void>(() => {});
-  // Tracks how long CAMERA_CHECK has seen the player continuously, so
-  // calibration can start automatically once they've held still for
-  // READY_STABILITY_MS — mirrors reflex-runner/flappy-human's Play.tsx.
-  const cameraCheckStableSinceRef = useRef<number | null>(null);
 
   // useFaceTracking needs a stable onResult reference at call time, but the
   // real handler (below) needs videoRef/canvasRef that useFaceTracking
@@ -114,6 +111,11 @@ export default function Play() {
     setStage("CALIBRATE_OPEN");
   }, []);
 
+  const { check: checkCameraStable, reset: resetCameraStable } = useCameraCheckAutoAdvance({
+    stabilityMs: CONFIG.READY_STABILITY_MS,
+    onReady: startCalibration,
+  });
+
   const handleResult = useCallback(
     (result: FaceResult | null) => {
       const canvas = canvasRef.current;
@@ -141,14 +143,7 @@ export default function Play() {
 
       if (stage === "CAMERA_CHECK") {
         setIsVisible(visible);
-        if (!visible) {
-          cameraCheckStableSinceRef.current = null;
-        } else if (cameraCheckStableSinceRef.current === null) {
-          cameraCheckStableSinceRef.current = performance.now();
-        } else if (performance.now() - cameraCheckStableSinceRef.current >= CONFIG.READY_STABILITY_MS) {
-          cameraCheckStableSinceRef.current = null;
-          startCalibration();
-        }
+        checkCameraStable(visible);
         return;
       }
 
@@ -185,7 +180,7 @@ export default function Play() {
         else if (remaining <= 0) endRound(CONFIG.ROUND_DURATION_MS, false);
       }
     },
-    [stage, endRound, videoRef, canvasRef, startCalibration]
+    [stage, endRound, videoRef, canvasRef, checkCameraStable]
   );
 
   useEffect(() => {
@@ -272,7 +267,7 @@ export default function Play() {
 
   function enterCameraCheck() {
     unlockAudio();
-    cameraCheckStableSinceRef.current = null;
+    resetCameraStable();
     setStage("CAMERA_CHECK");
   }
 
@@ -282,7 +277,7 @@ export default function Play() {
     scoreRef.current = 0;
     setScore(0);
     setFaceLost(false);
-    cameraCheckStableSinceRef.current = null;
+    resetCameraStable();
     setStage("IDLE");
   }
 

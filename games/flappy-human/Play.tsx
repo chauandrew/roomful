@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { PresenterLayout, ControlBar, BarButton } from "@/components/PresenterLayout";
 import { usePoseTracking } from "@/lib/tracking/usePoseTracking";
 import { useCountdown } from "@/lib/tracking/useCountdown";
+import { useCameraCheckAutoAdvance } from "@/lib/tracking/useCameraCheckAutoAdvance";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame } from "@/lib/tracking/drawPose";
 import type { PoseResult, Landmark } from "@/lib/tracking/types";
@@ -76,11 +77,6 @@ export default function Play() {
   const mainCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const lastFrameTimeRef = useRef(0);
   const endingRef = useRef(false);
-  // Timestamp the camera check last became continuously visible; once it's held
-  // for READY_STABILITY_MS we advance automatically (see handleResult below) —
-  // holding a flap-ready pose while also reaching for a mouse click is awkward,
-  // so this removes the click entirely instead of just enabling a button for it.
-  const cameraCheckStableSinceRef = useRef<number | null>(null);
   // Real gameplay physics only starts once PLAYING begins (no pre-flap hover
   // phase), so the gentle bob shown behind the countdown is a presentation-
   // only preview, timed off this timestamp — not a real GameState.
@@ -172,6 +168,14 @@ export default function Play() {
     startCountdownTimer();
   }, [startCountdownTimer]);
 
+  // Holding a flap-ready pose while also reaching for a mouse click is
+  // awkward, so this fires the round itself once the player has held visible
+  // for READY_STABILITY_MS, instead of just enabling a button for it.
+  const { check: checkCameraStable, reset: resetCameraStable } = useCameraCheckAutoAdvance({
+    stabilityMs: CONFIG.READY_STABILITY_MS,
+    onReady: startCountdown,
+  });
+
   const handleResult = useCallback(
     (result: PoseResult | null) => {
       const video = videoRef.current;
@@ -196,14 +200,7 @@ export default function Play() {
       if (stage === "CAMERA_CHECK") {
         const visible = isBodyVisible(landmarks);
         setIsVisible(visible);
-        if (!visible) {
-          cameraCheckStableSinceRef.current = null;
-        } else if (cameraCheckStableSinceRef.current === null) {
-          cameraCheckStableSinceRef.current = performance.now();
-        } else if (performance.now() - cameraCheckStableSinceRef.current >= CONFIG.READY_STABILITY_MS) {
-          cameraCheckStableSinceRef.current = null;
-          startCountdown();
-        }
+        checkCameraStable(visible);
         return;
       }
 
@@ -275,7 +272,7 @@ export default function Play() {
         drawScene(main.ctx, main.canvas.width, main.canvas.height, next, spritesRef.current!);
       }
     },
-    [stage, endGame, videoRef, canvasRef, startCountdown]
+    [stage, endGame, videoRef, canvasRef, checkCameraStable]
   );
 
   useEffect(() => {
@@ -283,7 +280,7 @@ export default function Play() {
   }, [handleResult]);
 
   function enterCameraCheck() {
-    cameraCheckStableSinceRef.current = null;
+    resetCameraStable();
     setStage("CAMERA_CHECK");
   }
 
@@ -302,7 +299,7 @@ export default function Play() {
     resetGameState();
     stopBgm();
     recorderRef.current!.stop();
-    cameraCheckStableSinceRef.current = null;
+    resetCameraStable();
     setIsVisible(false);
     setStage("IDLE");
   }

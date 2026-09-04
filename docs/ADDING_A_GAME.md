@@ -149,6 +149,7 @@ to `@mediapipe/tasks-vision` directly:
 | `drawPose.ts` | `drawMirroredVideoFrame` + `drawSkeleton`, each self-contained (own mirror transform), so they can be called independently or together. |
 | `useCountdown()` | Generic, cancelable N→0→"GO" countdown; your game passes its own timing. |
 | `CameraCheck` | Shared "step back, hold still, Ready" gating screen, parametrized by `isVisible`/`stabilityMs`. |
+| `useCameraCheckAutoAdvance()` | Fires your countdown/calibration-start function itself once `check(visible)` has seen continuous visibility for `stabilityMs` — see below. |
 | `types.ts` | Thin `Landmark`/`PoseResult` aliases over mediapipe's own types. |
 
 Your game's own detection algorithm (what counts as a "swing," a "squat," a
@@ -158,14 +159,13 @@ promote something from a game's detector into `lib/tracking/signals.ts` once
 a second game actually needs the same primitive.
 
 **CAMERA_CHECK must auto-advance.** Don't rely on `CameraCheck`'s "Ready"
-button alone — track how long the player has been continuously visible in a
-`cameraCheckStableSinceRef`, and once it's held for `CONFIG.READY_STABILITY_MS`
-call your countdown/calibration-start function yourself (see
-`games/reflex-runner/Play.tsx` or `games/flappy-human/Play.tsx`'s
-`handleResult` for the reference implementation). The "Ready" button stays
-wired to the same function as a manual fallback. This way every
-motion-tracking game starts the same way: click Start, step into frame, and
-play begins automatically — no second click required.
+button alone — wire `useCameraCheckAutoAdvance({ stabilityMs: CONFIG.READY_STABILITY_MS, onReady })`
+in, call the returned `check(visible)` on every tracking frame while in
+CAMERA_CHECK, and `reset()` whenever you leave that stage (entering it fresh,
+or aborting back to idle). The "Ready" button stays wired to the same
+`onReady` function as a manual fallback. This way every motion-tracking game
+starts the same way: click Start, step into frame, and play begins
+automatically — no second click required.
 
 One thing to get right: `games/clientRegistry.tsx` must register your `Play`
 with `dynamic(() => import("./your-game/Play"), { ssr: false })` —

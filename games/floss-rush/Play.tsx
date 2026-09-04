@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { PresenterLayout, ControlBar, BarButton } from "@/components/PresenterLayout";
 import { usePoseTracking } from "@/lib/tracking/usePoseTracking";
 import { useCountdown } from "@/lib/tracking/useCountdown";
+import { useCameraCheckAutoAdvance } from "@/lib/tracking/useCameraCheckAutoAdvance";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame, drawSkeleton } from "@/lib/tracking/drawPose";
 import type { PoseResult } from "@/lib/tracking/types";
@@ -53,10 +54,6 @@ export default function Play() {
   const endingRef = useRef(false);
   const flashCounterRef = useRef(0);
   const handleResultRef = useRef<(result: PoseResult | null) => void>(() => {});
-  // Tracks how long CAMERA_CHECK has seen the player continuously, so the
-  // countdown can start automatically once they've held still for
-  // READY_STABILITY_MS — mirrors reflex-runner/flappy-human's Play.tsx.
-  const cameraCheckStableSinceRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (formFlashId === null) return;
@@ -122,6 +119,11 @@ export default function Play() {
     startCountdownTimer();
   }, [startCountdownTimer]);
 
+  const { check: checkCameraStable, reset: resetCameraStable } = useCameraCheckAutoAdvance({
+    stabilityMs: CONFIG.READY_STABILITY_MS,
+    onReady: startCountdown,
+  });
+
   const handleResult = useCallback(
     (result: PoseResult | null) => {
       const canvas = canvasRef.current;
@@ -148,17 +150,10 @@ export default function Play() {
       } else if (stage === "CAMERA_CHECK") {
         const visible = isBodyVisible(landmarks);
         setIsVisible(visible);
-        if (!visible) {
-          cameraCheckStableSinceRef.current = null;
-        } else if (cameraCheckStableSinceRef.current === null) {
-          cameraCheckStableSinceRef.current = performance.now();
-        } else if (performance.now() - cameraCheckStableSinceRef.current >= CONFIG.READY_STABILITY_MS) {
-          cameraCheckStableSinceRef.current = null;
-          startCountdown();
-        }
+        checkCameraStable(visible);
       }
     },
-    [stage, addPoints, endGame, videoRef, canvasRef, startCountdown]
+    [stage, addPoints, endGame, videoRef, canvasRef, checkCameraStable]
   );
 
   useEffect(() => {
@@ -202,7 +197,7 @@ export default function Play() {
 
   function enterCameraCheck() {
     unlockAudio();
-    cameraCheckStableSinceRef.current = null;
+    resetCameraStable();
     setStage("CAMERA_CHECK");
   }
 
@@ -214,7 +209,7 @@ export default function Play() {
     setScore(0);
     detectorRef.current!.reset();
     setTimerUrgent(false);
-    cameraCheckStableSinceRef.current = null;
+    resetCameraStable();
     setStage("IDLE");
   }
 
