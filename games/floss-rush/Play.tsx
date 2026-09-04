@@ -53,6 +53,10 @@ export default function Play() {
   const endingRef = useRef(false);
   const flashCounterRef = useRef(0);
   const handleResultRef = useRef<(result: PoseResult | null) => void>(() => {});
+  // Tracks how long CAMERA_CHECK has seen the player continuously, so the
+  // countdown can start automatically once they've held still for
+  // READY_STABILITY_MS — mirrors reflex-runner/flappy-human's Play.tsx.
+  const cameraCheckStableSinceRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (formFlashId === null) return;
@@ -94,6 +98,30 @@ export default function Play() {
     setLeaderboard(await getTopScores(CONFIG.LEADERBOARD_SIZE));
   }, []);
 
+  const beginPlay = useCallback(() => {
+    scoreRef.current = 0;
+    setScore(0);
+    detectorRef.current!.reset();
+    setTimerText((CONFIG.GAME_DURATION_MS / 1000).toFixed(1));
+    setTimerUrgent(false);
+    endingRef.current = false;
+    playStartRef.current = performance.now();
+    setStage("PLAYING");
+  }, []);
+
+  const countdown = useCountdown({
+    from: CONFIG.COUNTDOWN_FROM,
+    tickMs: CONFIG.COUNTDOWN_TICK_MS,
+    goMs: CONFIG.COUNTDOWN_GO_MS,
+    onDone: beginPlay,
+  });
+
+  const startCountdownTimer = countdown.start;
+  const startCountdown = useCallback(() => {
+    setStage("COUNTDOWN");
+    startCountdownTimer();
+  }, [startCountdownTimer]);
+
   const handleResult = useCallback(
     (result: PoseResult | null) => {
       const canvas = canvasRef.current;
@@ -118,10 +146,19 @@ export default function Play() {
         if (ev.swing) addPoints(ev.swing.points, ev.swing.goodForm);
         if (remaining <= 0) void endGame();
       } else if (stage === "CAMERA_CHECK") {
-        setIsVisible(isBodyVisible(landmarks));
+        const visible = isBodyVisible(landmarks);
+        setIsVisible(visible);
+        if (!visible) {
+          cameraCheckStableSinceRef.current = null;
+        } else if (cameraCheckStableSinceRef.current === null) {
+          cameraCheckStableSinceRef.current = performance.now();
+        } else if (performance.now() - cameraCheckStableSinceRef.current >= CONFIG.READY_STABILITY_MS) {
+          cameraCheckStableSinceRef.current = null;
+          startCountdown();
+        }
       }
     },
-    [stage, addPoints, endGame, videoRef, canvasRef]
+    [stage, addPoints, endGame, videoRef, canvasRef, startCountdown]
   );
 
   useEffect(() => {
@@ -163,32 +200,10 @@ export default function Play() {
     return () => clearInterval(id);
   }, [stage]);
 
-  const beginPlay = useCallback(() => {
-    scoreRef.current = 0;
-    setScore(0);
-    detectorRef.current!.reset();
-    setTimerText((CONFIG.GAME_DURATION_MS / 1000).toFixed(1));
-    setTimerUrgent(false);
-    endingRef.current = false;
-    playStartRef.current = performance.now();
-    setStage("PLAYING");
-  }, []);
-
-  const countdown = useCountdown({
-    from: CONFIG.COUNTDOWN_FROM,
-    tickMs: CONFIG.COUNTDOWN_TICK_MS,
-    goMs: CONFIG.COUNTDOWN_GO_MS,
-    onDone: beginPlay,
-  });
-
   function enterCameraCheck() {
     unlockAudio();
+    cameraCheckStableSinceRef.current = null;
     setStage("CAMERA_CHECK");
-  }
-
-  function startCountdown() {
-    setStage("COUNTDOWN");
-    countdown.start();
   }
 
   // Aborts the current run (camera check, countdown, or mid-game) back to
@@ -199,6 +214,7 @@ export default function Play() {
     setScore(0);
     detectorRef.current!.reset();
     setTimerUrgent(false);
+    cameraCheckStableSinceRef.current = null;
     setStage("IDLE");
   }
 

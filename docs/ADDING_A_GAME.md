@@ -157,6 +157,16 @@ shared layer, since different games need different signal shapes. Only
 promote something from a game's detector into `lib/tracking/signals.ts` once
 a second game actually needs the same primitive.
 
+**CAMERA_CHECK must auto-advance.** Don't rely on `CameraCheck`'s "Ready"
+button alone — track how long the player has been continuously visible in a
+`cameraCheckStableSinceRef`, and once it's held for `CONFIG.READY_STABILITY_MS`
+call your countdown/calibration-start function yourself (see
+`games/reflex-runner/Play.tsx` or `games/flappy-human/Play.tsx`'s
+`handleResult` for the reference implementation). The "Ready" button stays
+wired to the same function as a manual fallback. This way every
+motion-tracking game starts the same way: click Start, step into frame, and
+play begins automatically — no second click required.
+
 One thing to get right: `games/clientRegistry.tsx` must register your `Play`
 with `dynamic(() => import("./your-game/Play"), { ssr: false })` —
 `usePoseTracking` touches `navigator.mediaDevices`, which doesn't exist

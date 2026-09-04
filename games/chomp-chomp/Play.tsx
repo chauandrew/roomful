@@ -80,6 +80,10 @@ export default function Play() {
   const playStartRef = useRef(0);
   const endingRef = useRef(false);
   const handleResultRef = useRef<(result: FaceResult | null) => void>(() => {});
+  // Tracks how long CAMERA_CHECK has seen the player continuously, so
+  // calibration can start automatically once they've held still for
+  // READY_STABILITY_MS — mirrors reflex-runner/flappy-human's Play.tsx.
+  const cameraCheckStableSinceRef = useRef<number | null>(null);
 
   // useFaceTracking needs a stable onResult reference at call time, but the
   // real handler (below) needs videoRef/canvasRef that useFaceTracking
@@ -103,6 +107,11 @@ export default function Play() {
     if (isBestRun) setBest(value);
     setIsNewBest(isBestRun);
     setBestDisplay(getBest());
+  }, []);
+
+  const startCalibration = useCallback(() => {
+    mouthMARef.current!.reset();
+    setStage("CALIBRATE_OPEN");
   }, []);
 
   const handleResult = useCallback(
@@ -132,6 +141,14 @@ export default function Play() {
 
       if (stage === "CAMERA_CHECK") {
         setIsVisible(visible);
+        if (!visible) {
+          cameraCheckStableSinceRef.current = null;
+        } else if (cameraCheckStableSinceRef.current === null) {
+          cameraCheckStableSinceRef.current = performance.now();
+        } else if (performance.now() - cameraCheckStableSinceRef.current >= CONFIG.READY_STABILITY_MS) {
+          cameraCheckStableSinceRef.current = null;
+          startCalibration();
+        }
         return;
       }
 
@@ -168,7 +185,7 @@ export default function Play() {
         else if (remaining <= 0) endRound(CONFIG.ROUND_DURATION_MS, false);
       }
     },
-    [stage, endRound, videoRef, canvasRef]
+    [stage, endRound, videoRef, canvasRef, startCalibration]
   );
 
   useEffect(() => {
@@ -255,12 +272,8 @@ export default function Play() {
 
   function enterCameraCheck() {
     unlockAudio();
+    cameraCheckStableSinceRef.current = null;
     setStage("CAMERA_CHECK");
-  }
-
-  function startCalibration() {
-    mouthMARef.current!.reset();
-    setStage("CALIBRATE_OPEN");
   }
 
   // Aborts the current run back to idle. The in-progress score is discarded.
@@ -269,6 +282,7 @@ export default function Play() {
     scoreRef.current = 0;
     setScore(0);
     setFaceLost(false);
+    cameraCheckStableSinceRef.current = null;
     setStage("IDLE");
   }
 

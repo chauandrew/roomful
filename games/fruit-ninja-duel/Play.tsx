@@ -68,6 +68,10 @@ export default function Play() {
   const lastFrameTRef = useRef(0);
   const endingRef = useRef(false);
   const handleResultRef = useRef<(result: HandResult | null) => void>(() => {});
+  // Tracks how long CAMERA_CHECK has seen hands continuously, so the round
+  // can start automatically once they've held still for READY_STABILITY_MS —
+  // mirrors reflex-runner/flappy-human's Play.tsx.
+  const cameraCheckStableSinceRef = useRef<number | null>(null);
 
   // useHandTracking needs a stable onResult reference at call time, but the
   // real handler (below) needs videoRef/canvasRef that useHandTracking
@@ -86,6 +90,30 @@ export default function Play() {
     setFinalScores(scores);
     setWinner(scores[0] > scores[1] ? 0 : scores[1] > scores[0] ? 1 : "tie");
   }, []);
+
+  const beginPlay = useCallback(() => {
+    spawnRef.current = createSpawnState();
+    entitiesRef.current = [];
+    splashesRef.current = [];
+    scoreRef.current = [0, 0];
+    endingRef.current = false;
+    playStartRef.current = performance.now();
+    lastFrameTRef.current = playStartRef.current;
+    setStage("PLAYING");
+  }, []);
+
+  const countdown = useCountdown({
+    from: CONFIG.COUNTDOWN_FROM,
+    tickMs: CONFIG.COUNTDOWN_TICK_MS,
+    goMs: CONFIG.COUNTDOWN_GO_MS,
+    onDone: beginPlay,
+  });
+  const { start: startCountdownTimer } = countdown;
+
+  const startRound = useCallback(() => {
+    setStage("COUNTDOWN");
+    startCountdownTimer();
+  }, [startCountdownTimer]);
 
   const handleResult = useCallback(
     (result: HandResult | null) => {
@@ -110,8 +138,17 @@ export default function Play() {
       trackerRef.current = updateHandTracker(trackerRef.current, detections, now, TRACKER_TUNING);
 
       if (stage === "CAMERA_CHECK") {
-        setIsVisible(trackerRef.current.some((s) => s.active));
+        const visible = trackerRef.current.some((s) => s.active);
+        setIsVisible(visible);
         drawHandTrails(ctx, canvas, trackerRef.current, now, colorForSlot);
+        if (!visible) {
+          cameraCheckStableSinceRef.current = null;
+        } else if (cameraCheckStableSinceRef.current === null) {
+          cameraCheckStableSinceRef.current = performance.now();
+        } else if (performance.now() - cameraCheckStableSinceRef.current >= CONFIG.READY_STABILITY_MS) {
+          cameraCheckStableSinceRef.current = null;
+          startRound();
+        }
         return;
       }
 
@@ -161,7 +198,7 @@ export default function Play() {
         if (elapsed >= CONFIG.ROUND_DURATION_MS) endRound();
       }
     },
-    [stage, endRound, videoRef, canvasRef]
+    [stage, endRound, videoRef, canvasRef, startRound]
   );
 
   useEffect(() => {
@@ -192,39 +229,17 @@ export default function Play() {
     return () => stopBgm();
   }, [stage]);
 
-  const beginPlay = useCallback(() => {
-    spawnRef.current = createSpawnState();
-    entitiesRef.current = [];
-    splashesRef.current = [];
-    scoreRef.current = [0, 0];
-    endingRef.current = false;
-    playStartRef.current = performance.now();
-    lastFrameTRef.current = playStartRef.current;
-    setStage("PLAYING");
-  }, []);
-
-  const countdown = useCountdown({
-    from: CONFIG.COUNTDOWN_FROM,
-    tickMs: CONFIG.COUNTDOWN_TICK_MS,
-    goMs: CONFIG.COUNTDOWN_GO_MS,
-    onDone: beginPlay,
-  });
-  const { start: startCountdown } = countdown;
-
   function enterCameraCheck() {
     unlockAudio();
+    cameraCheckStableSinceRef.current = null;
     setStage("CAMERA_CHECK");
-  }
-
-  function startRound() {
-    setStage("COUNTDOWN");
-    startCountdown();
   }
 
   // Aborts the current run back to idle. The in-progress scores are discarded.
   function exitToIdle() {
     countdown.cancel();
     scoreRef.current = [0, 0];
+    cameraCheckStableSinceRef.current = null;
     setStage("IDLE");
   }
 
