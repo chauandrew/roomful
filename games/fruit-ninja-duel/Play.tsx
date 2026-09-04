@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { PresenterLayout, ControlBar, BarButton } from "@/components/PresenterLayout";
 import { useHandTracking } from "@/lib/tracking/useHandTracking";
 import { useCountdown } from "@/lib/tracking/useCountdown";
+import { useCameraCheckAutoAdvance } from "@/lib/tracking/useCameraCheckAutoAdvance";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame } from "@/lib/tracking/drawPose";
 import type { HandResult } from "@/lib/tracking/types";
@@ -87,6 +88,35 @@ export default function Play() {
     setWinner(scores[0] > scores[1] ? 0 : scores[1] > scores[0] ? 1 : "tie");
   }, []);
 
+  const beginPlay = useCallback(() => {
+    spawnRef.current = createSpawnState();
+    entitiesRef.current = [];
+    splashesRef.current = [];
+    scoreRef.current = [0, 0];
+    endingRef.current = false;
+    playStartRef.current = performance.now();
+    lastFrameTRef.current = playStartRef.current;
+    setStage("PLAYING");
+  }, []);
+
+  const countdown = useCountdown({
+    from: CONFIG.COUNTDOWN_FROM,
+    tickMs: CONFIG.COUNTDOWN_TICK_MS,
+    goMs: CONFIG.COUNTDOWN_GO_MS,
+    onDone: beginPlay,
+  });
+  const { start: startCountdownTimer } = countdown;
+
+  const startRound = useCallback(() => {
+    setStage("COUNTDOWN");
+    startCountdownTimer();
+  }, [startCountdownTimer]);
+
+  const { check: checkCameraStable, reset: resetCameraStable } = useCameraCheckAutoAdvance({
+    stabilityMs: CONFIG.READY_STABILITY_MS,
+    onReady: startRound,
+  });
+
   const handleResult = useCallback(
     (result: HandResult | null) => {
       const canvas = canvasRef.current;
@@ -110,8 +140,10 @@ export default function Play() {
       trackerRef.current = updateHandTracker(trackerRef.current, detections, now, TRACKER_TUNING);
 
       if (stage === "CAMERA_CHECK") {
-        setIsVisible(trackerRef.current.some((s) => s.active));
+        const visible = trackerRef.current.some((s) => s.active);
+        setIsVisible(visible);
         drawHandTrails(ctx, canvas, trackerRef.current, now, colorForSlot);
+        checkCameraStable(visible);
         return;
       }
 
@@ -161,7 +193,7 @@ export default function Play() {
         if (elapsed >= CONFIG.ROUND_DURATION_MS) endRound();
       }
     },
-    [stage, endRound, videoRef, canvasRef]
+    [stage, endRound, videoRef, canvasRef, checkCameraStable]
   );
 
   useEffect(() => {
@@ -192,39 +224,17 @@ export default function Play() {
     return () => stopBgm();
   }, [stage]);
 
-  const beginPlay = useCallback(() => {
-    spawnRef.current = createSpawnState();
-    entitiesRef.current = [];
-    splashesRef.current = [];
-    scoreRef.current = [0, 0];
-    endingRef.current = false;
-    playStartRef.current = performance.now();
-    lastFrameTRef.current = playStartRef.current;
-    setStage("PLAYING");
-  }, []);
-
-  const countdown = useCountdown({
-    from: CONFIG.COUNTDOWN_FROM,
-    tickMs: CONFIG.COUNTDOWN_TICK_MS,
-    goMs: CONFIG.COUNTDOWN_GO_MS,
-    onDone: beginPlay,
-  });
-  const { start: startCountdown } = countdown;
-
   function enterCameraCheck() {
     unlockAudio();
+    resetCameraStable();
     setStage("CAMERA_CHECK");
-  }
-
-  function startRound() {
-    setStage("COUNTDOWN");
-    startCountdown();
   }
 
   // Aborts the current run back to idle. The in-progress scores are discarded.
   function exitToIdle() {
     countdown.cancel();
     scoreRef.current = [0, 0];
+    resetCameraStable();
     setStage("IDLE");
   }
 

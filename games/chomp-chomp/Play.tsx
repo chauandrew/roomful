@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { PresenterLayout, ControlBar, BarButton } from "@/components/PresenterLayout";
 import { useFaceTracking } from "@/lib/tracking/useFaceTracking";
 import { useCountdown } from "@/lib/tracking/useCountdown";
+import { useCameraCheckAutoAdvance } from "@/lib/tracking/useCameraCheckAutoAdvance";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame } from "@/lib/tracking/drawPose";
 import { MovingAverage, mouthOpenRatio } from "@/lib/tracking/signals";
@@ -105,6 +106,16 @@ export default function Play() {
     setBestDisplay(getBest());
   }, []);
 
+  const startCalibration = useCallback(() => {
+    mouthMARef.current!.reset();
+    setStage("CALIBRATE_OPEN");
+  }, []);
+
+  const { check: checkCameraStable, reset: resetCameraStable } = useCameraCheckAutoAdvance({
+    stabilityMs: CONFIG.READY_STABILITY_MS,
+    onReady: startCalibration,
+  });
+
   const handleResult = useCallback(
     (result: FaceResult | null) => {
       const canvas = canvasRef.current;
@@ -132,6 +143,7 @@ export default function Play() {
 
       if (stage === "CAMERA_CHECK") {
         setIsVisible(visible);
+        checkCameraStable(visible);
         return;
       }
 
@@ -168,7 +180,7 @@ export default function Play() {
         else if (remaining <= 0) endRound(CONFIG.ROUND_DURATION_MS, false);
       }
     },
-    [stage, endRound, videoRef, canvasRef]
+    [stage, endRound, videoRef, canvasRef, checkCameraStable]
   );
 
   useEffect(() => {
@@ -255,12 +267,8 @@ export default function Play() {
 
   function enterCameraCheck() {
     unlockAudio();
+    resetCameraStable();
     setStage("CAMERA_CHECK");
-  }
-
-  function startCalibration() {
-    mouthMARef.current!.reset();
-    setStage("CALIBRATE_OPEN");
   }
 
   // Aborts the current run back to idle. The in-progress score is discarded.
@@ -269,6 +277,7 @@ export default function Play() {
     scoreRef.current = 0;
     setScore(0);
     setFaceLost(false);
+    resetCameraStable();
     setStage("IDLE");
   }
 

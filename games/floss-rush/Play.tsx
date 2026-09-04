@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { PresenterLayout, ControlBar, BarButton } from "@/components/PresenterLayout";
 import { usePoseTracking } from "@/lib/tracking/usePoseTracking";
 import { useCountdown } from "@/lib/tracking/useCountdown";
+import { useCameraCheckAutoAdvance } from "@/lib/tracking/useCameraCheckAutoAdvance";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
 import { drawMirroredVideoFrame, drawSkeleton } from "@/lib/tracking/drawPose";
 import type { PoseResult } from "@/lib/tracking/types";
@@ -94,6 +95,35 @@ export default function Play() {
     setLeaderboard(await getTopScores(CONFIG.LEADERBOARD_SIZE));
   }, []);
 
+  const beginPlay = useCallback(() => {
+    scoreRef.current = 0;
+    setScore(0);
+    detectorRef.current!.reset();
+    setTimerText((CONFIG.GAME_DURATION_MS / 1000).toFixed(1));
+    setTimerUrgent(false);
+    endingRef.current = false;
+    playStartRef.current = performance.now();
+    setStage("PLAYING");
+  }, []);
+
+  const countdown = useCountdown({
+    from: CONFIG.COUNTDOWN_FROM,
+    tickMs: CONFIG.COUNTDOWN_TICK_MS,
+    goMs: CONFIG.COUNTDOWN_GO_MS,
+    onDone: beginPlay,
+  });
+
+  const startCountdownTimer = countdown.start;
+  const startCountdown = useCallback(() => {
+    setStage("COUNTDOWN");
+    startCountdownTimer();
+  }, [startCountdownTimer]);
+
+  const { check: checkCameraStable, reset: resetCameraStable } = useCameraCheckAutoAdvance({
+    stabilityMs: CONFIG.READY_STABILITY_MS,
+    onReady: startCountdown,
+  });
+
   const handleResult = useCallback(
     (result: PoseResult | null) => {
       const canvas = canvasRef.current;
@@ -118,10 +148,12 @@ export default function Play() {
         if (ev.swing) addPoints(ev.swing.points, ev.swing.goodForm);
         if (remaining <= 0) void endGame();
       } else if (stage === "CAMERA_CHECK") {
-        setIsVisible(isBodyVisible(landmarks));
+        const visible = isBodyVisible(landmarks);
+        setIsVisible(visible);
+        checkCameraStable(visible);
       }
     },
-    [stage, addPoints, endGame, videoRef, canvasRef]
+    [stage, addPoints, endGame, videoRef, canvasRef, checkCameraStable]
   );
 
   useEffect(() => {
@@ -163,32 +195,10 @@ export default function Play() {
     return () => clearInterval(id);
   }, [stage]);
 
-  const beginPlay = useCallback(() => {
-    scoreRef.current = 0;
-    setScore(0);
-    detectorRef.current!.reset();
-    setTimerText((CONFIG.GAME_DURATION_MS / 1000).toFixed(1));
-    setTimerUrgent(false);
-    endingRef.current = false;
-    playStartRef.current = performance.now();
-    setStage("PLAYING");
-  }, []);
-
-  const countdown = useCountdown({
-    from: CONFIG.COUNTDOWN_FROM,
-    tickMs: CONFIG.COUNTDOWN_TICK_MS,
-    goMs: CONFIG.COUNTDOWN_GO_MS,
-    onDone: beginPlay,
-  });
-
   function enterCameraCheck() {
     unlockAudio();
+    resetCameraStable();
     setStage("CAMERA_CHECK");
-  }
-
-  function startCountdown() {
-    setStage("COUNTDOWN");
-    countdown.start();
   }
 
   // Aborts the current run (camera check, countdown, or mid-game) back to
@@ -199,6 +209,7 @@ export default function Play() {
     setScore(0);
     detectorRef.current!.reset();
     setTimerUrgent(false);
+    resetCameraStable();
     setStage("IDLE");
   }
 
