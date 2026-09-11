@@ -19,9 +19,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePoseTracking } from "@/lib/tracking/usePoseTracking";
 import { useCameraCheckAutoAdvance } from "@/lib/tracking/useCameraCheckAutoAdvance";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
-import { drawMirroredVideoFrame, drawSkeleton } from "@/lib/tracking/drawPose";
+import { drawMirroredVideoFrame, drawSkeleton, drawCenterLine } from "@/lib/tracking/drawPose";
 import type { PoseResult } from "@/lib/tracking/types";
-import { attributePlayers } from "./attribution";
+import { PlayerAttributor } from "./attribution";
 import { PoseFighterDetector, isUpperBodyVisible } from "./detector";
 import { CONFIG, type Pose } from "./config";
 
@@ -333,6 +333,8 @@ export default function Tutorial({ onExit }: TutorialProps) {
   if (detector1Ref.current === null) detector1Ref.current = new PoseFighterDetector();
   const detector2Ref = useRef<PoseFighterDetector | null>(null);
   if (detector2Ref.current === null) detector2Ref.current = new PoseFighterDetector();
+  const attributorRef = useRef<PlayerAttributor | null>(null);
+  if (attributorRef.current === null) attributorRef.current = new PlayerAttributor();
 
   const lastFrameTRef = useRef(0);
   const p1ActiveRef = useRef(false);
@@ -374,10 +376,11 @@ export default function Tutorial({ onExit }: TutorialProps) {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       drawMirroredVideoFrame(ctx, video, canvas);
+      drawCenterLine(ctx, canvas);
 
       const now = performance.now();
       const aspect = canvas.width / canvas.height;
-      const [p1Landmarks, p2Landmarks] = attributePlayers(result?.landmarks ?? [], aspect);
+      const [p1Landmarks, p2Landmarks] = attributorRef.current!.attribute(result?.landmarks ?? [], aspect);
 
       if (stage === "CAMERA_CHECK") {
         const v1 = isUpperBodyVisible(p1Landmarks);
@@ -400,10 +403,16 @@ export default function Tutorial({ onExit }: TutorialProps) {
         if (p1Landmarks) drawSkeleton(ctx, canvas, p1Landmarks, CONFIG.PLAYER_COLORS[0]);
         if (p2Landmarks) drawSkeleton(ctx, canvas, p2Landmarks, CONFIG.PLAYER_COLORS[1]);
 
-        // A player who wasn't in frame during CAMERA_CHECK (solo practice,
-        // friend joins late) gets calibrated on their first visible frame.
-        if (p1Landmarks && !p1ActiveRef.current) detector1Ref.current!.calibrate(p1Landmarks);
-        if (p2Landmarks && !p2ActiveRef.current) detector2Ref.current!.calibrate(p2Landmarks);
+        // Calibrate every frame, not just once — same reasoning as Play.tsx's
+        // COUNTDOWN recalibration: calibrate() is a no-op on a bad frame
+        // (leaves any prior baseline untouched), so this both self-heals a
+        // player whose wrists weren't visible yet on their first tracked
+        // frame (torso-only visibility is enough to count as "in frame", see
+        // attribution.ts, but calibrate() itself needs the wrists too) and
+        // keeps the shoulder-width normalizer current if a player drifts
+        // closer or farther from the camera mid-tutorial.
+        if (p1Landmarks) detector1Ref.current!.calibrate(p1Landmarks);
+        if (p2Landmarks) detector2Ref.current!.calibrate(p2Landmarks);
         if (p1Landmarks && !p1ActiveRef.current) {
           p1ActiveRef.current = true;
           setP1Active(true);
