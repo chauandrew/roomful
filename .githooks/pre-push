@@ -12,3 +12,4 @@ npm run test:fruit-ninja
 npm run test:crossy-beach
 npm run test:flappy-human
 npm run test:reflex-runner
+npm run test:road-fighter
