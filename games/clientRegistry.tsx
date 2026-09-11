@@ -58,4 +58,9 @@ export const gameComponents: Record<string, GameComponents> = {
     // which doesn't exist during server-side rendering.
     Play: dynamic(() => import("./reflex-runner/Play"), { ssr: false }),
   },
+  "road-fighter": {
+    // ssr:false required — usePoseTracking touches navigator.mediaDevices,
+    // which doesn't exist during server-side rendering.
+    Play: dynamic(() => import("./road-fighter/Play"), { ssr: false }),
+  },
 };
