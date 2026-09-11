@@ -24,6 +24,10 @@ export function drawMirroredVideoFrame(
  * draw call manages its own transform (save/restore internally) rather than
  * relying on the caller to share one across both calls.
  */
+// BlazePose landmarks 0-10 are all face points (nose, eyes, ears, mouth) —
+// skipped so the overlay reads as a body skeleton, not a face mask.
+const MIN_BODY_LANDMARK = 11;
+
 export function drawSkeleton(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
@@ -37,6 +41,7 @@ export function drawSkeleton(
   ctx.lineWidth = Math.max(2, canvas.width / 320);
   ctx.strokeStyle = color;
   for (const c of PoseLandmarker.POSE_CONNECTIONS) {
+    if (c.start < MIN_BODY_LANDMARK || c.end < MIN_BODY_LANDMARK) continue;
     const a = landmarks[c.start];
     const b = landmarks[c.end];
     if (!a || !b) continue;
@@ -47,7 +52,9 @@ export function drawSkeleton(
   }
   ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
   const r = Math.max(2, canvas.width / 360);
-  for (const p of landmarks) {
+  for (let i = MIN_BODY_LANDMARK; i < landmarks.length; i++) {
+    const p = landmarks[i];
+    if (!p) continue;
     ctx.beginPath();
     ctx.arc(p.x * canvas.width, p.y * canvas.height, r, 0, Math.PI * 2);
     ctx.fill();

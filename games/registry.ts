@@ -22,11 +22,13 @@ import { fruitNinjaDuelMeta } from "./fruit-ninja-duel/meta";
 import { crossyBeachMeta } from "./crossy-beach/meta";
 import { flappyHumanMeta } from "./flappy-human/meta";
 import { reflexRunnerMeta } from "./reflex-runner/meta";
+import { roadFighterMeta } from "./road-fighter/meta";
 
 export const games: GameMeta[] = [
   reflexRunnerMeta,
-  sketchChainMeta,
+  roadFighterMeta,
   flossRushMeta,
+  sketchChainMeta,
   chompChompMeta,
   fruitNinjaMeta,
   fruitNinjaDuelMeta,
