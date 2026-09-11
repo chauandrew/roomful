@@ -26,7 +26,7 @@ npm install
 npm run dev
 ```
 
-That starts **two** processes (via `run-p`):
+That starts **two** processes (via `concurrently`):
 
 - Next.js on [http://localhost:3000](http://localhost:3000)
 - The room server (`wrangler dev`) on `127.0.0.1:1999` (the browser connects to it directly)
