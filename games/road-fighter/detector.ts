@@ -4,10 +4,12 @@
  * in right now" (one landmark relative to another in the SAME frame) rather
  * than deviation from a calibrated neutral stance — unlike reflex-runner's
  * lane/duck, none of these moves are about how far the player has moved
- * from standing normally. calibrate() still runs once, but only to lock a
- * stable shoulderWidth normalizer for the whole match, so the denominator
- * doesn't jitter mid-move as a player twists — not to capture a baseline
- * position.
+ * from standing normally. calibrate() only locks a stable shoulderWidth
+ * normalizer, not a baseline position, so callers are expected to call it
+ * repeatedly (every frame, in practice) rather than once — see Play.tsx's
+ * COUNTDOWN handling and Tutorial.tsx's TEACHING handling, both of which
+ * recalibrate continuously so the denominator self-heals from a dropout and
+ * tracks a player who drifts closer to or farther from the camera.
  *
  * Every move is upper-body only (shoulders/wrists/hips) — no move needs legs
  * in frame, so players only need to fit from about the waist up.

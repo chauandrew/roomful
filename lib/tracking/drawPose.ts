@@ -62,3 +62,20 @@ export function drawSkeleton(
 
   ctx.restore();
 }
+
+/**
+ * A dashed vertical line down the exact horizontal center of the canvas —
+ * for two-player games that need to show players which half of the frame is
+ * theirs. Symmetric around the midpoint, so it needs no mirror transform.
+ */
+export function drawCenterLine(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement, color = "rgba(255, 255, 255, 0.35)") {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = Math.max(2, canvas.width / 480);
+  ctx.setLineDash([canvas.height / 40, canvas.height / 60]);
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2, 0);
+  ctx.lineTo(canvas.width / 2, canvas.height);
+  ctx.stroke();
+  ctx.restore();
+}

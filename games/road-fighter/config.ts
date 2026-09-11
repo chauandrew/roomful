@@ -60,6 +60,13 @@ export const CONFIG = {
 
   // --- Attribution ---
   MIN_POSE_SPAN: 0.12, // minimum torso span (shoulder-to-hip midpoint distance, aspect-corrected) to count as a real nearby player
+  // Within this distance of the frame's exact midline (x=0.5), a detection
+  // sticks with whichever player it was closest to last frame instead of
+  // re-deciding from the absolute midline — same idea as fruit-ninja-duel's
+  // MIDLINE_DEADZONE, adapted to a two-body per-frame classification instead
+  // of per-hand slot tracking. Without this, a player standing near center
+  // (or ordinary landmark jitter) can flip player1/player2 frame to frame.
+  MIDLINE_DEADZONE: 0.05,
 
   // --- Players ---
   PLAYER_COLORS: ["#4ade80", "#60a5fa"] as [string, string], // [Player 1 (screen-left), Player 2 (screen-right)]

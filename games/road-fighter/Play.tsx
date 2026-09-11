@@ -29,9 +29,9 @@ import { usePoseTracking } from "@/lib/tracking/usePoseTracking";
 import { useCountdown } from "@/lib/tracking/useCountdown";
 import { useCameraCheckAutoAdvance } from "@/lib/tracking/useCameraCheckAutoAdvance";
 import { CameraCheck } from "@/lib/tracking/CameraCheck";
-import { drawMirroredVideoFrame, drawSkeleton } from "@/lib/tracking/drawPose";
+import { drawMirroredVideoFrame, drawSkeleton, drawCenterLine } from "@/lib/tracking/drawPose";
 import type { PoseResult } from "@/lib/tracking/types";
-import { attributePlayers } from "./attribution";
+import { PlayerAttributor } from "./attribution";
 import { PoseFighterDetector, isUpperBodyVisible } from "./detector";
 import { resolveRound, type RoundOutcome } from "./logic";
 import { CONFIG, type Pose } from "./config";
@@ -106,6 +106,8 @@ function Match({ onTutorial }: { onTutorial: () => void }) {
   if (detector1Ref.current === null) detector1Ref.current = new PoseFighterDetector();
   const detector2Ref = useRef<PoseFighterDetector | null>(null);
   if (detector2Ref.current === null) detector2Ref.current = new PoseFighterDetector();
+  const attributorRef = useRef<PlayerAttributor | null>(null);
+  if (attributorRef.current === null) attributorRef.current = new PlayerAttributor();
 
   const lastFrameTRef = useRef(0);
   const p1LockedRef = useRef<Pose | null>(null);
@@ -220,10 +222,11 @@ function Match({ onTutorial }: { onTutorial: () => void }) {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       drawMirroredVideoFrame(ctx, video, canvas);
+      drawCenterLine(ctx, canvas);
 
       const now = performance.now();
       const aspect = canvas.width / canvas.height;
-      const [p1Landmarks, p2Landmarks] = attributePlayers(result?.landmarks ?? [], aspect);
+      const [p1Landmarks, p2Landmarks] = attributorRef.current!.attribute(result?.landmarks ?? [], aspect);
 
       if (stage === "CAMERA_CHECK" || stage === "STANCE_CHECK") {
         const v1 = isUpperBodyVisible(p1Landmarks);

@@ -1,8 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { attributePlayers, poseSpan } from "./attribution";
+import { PlayerAttributor, poseSpan } from "./attribution";
 import { CONFIG } from "./config";
 import type { Landmark } from "@/lib/tracking/types";
+
+/** A fresh PlayerAttributor has no position history, so a single call behaves
+ * exactly like the old stateless attributePlayers() function did. */
+function attributePlayers(landmarksList: Landmark[][], aspect: number) {
+  return new PlayerAttributor().attribute(landmarksList, aspect);
+}
 
 const L_SHOULDER = 11;
 const R_SHOULDER = 12;
@@ -79,4 +85,32 @@ test("empty landmarksList returns [null, null] without throwing", () => {
 test("a detection missing required landmarks is treated as span 0 and filtered out", () => {
   const malformed: Landmark[] = new Array(10).fill(point(0, 0)); // no hip landmarks
   assert.deepEqual(attributePlayers([malformed], 1), [null, null]);
+});
+
+test("a detection jittering across the midline within the deadzone sticks to the same player", () => {
+  // Regression: without sticky attribution, this exact jitter would flip
+  // player1/player2 every time the raw landmark noise crossed x=0.5.
+  const attributor = new PlayerAttributor();
+  const frame1 = pose(0.53, BIG_SPAN); // raw 0.53 -> mirrored 0.47 -> just inside the deadzone, left side
+  const frame2 = pose(0.48, BIG_SPAN); // raw 0.48 -> mirrored 0.52 -> just inside the deadzone, jittered to the right side
+
+  assert.deepEqual(attributor.attribute([frame1], 1), [frame1, null]);
+  assert.deepEqual(attributor.attribute([frame2], 1), [frame2, null]); // sticks to player 1 despite crossing 0.5
+});
+
+test("a detection that clearly crosses the midline (outside the deadzone) still switches sides", () => {
+  const attributor = new PlayerAttributor();
+  attributor.attribute([pose(0.8, BIG_SPAN)], 1); // raw 0.8 -> mirrored 0.2 -> clearly player 1
+
+  const clearlyRight = pose(0.1, BIG_SPAN); // raw 0.1 -> mirrored 0.9 -> clearly player 2, well outside the deadzone
+  assert.deepEqual(attributor.attribute([clearlyRight], 1), [null, clearlyRight]);
+});
+
+test("reset() clears position memory, falling back to the absolute midline again", () => {
+  const attributor = new PlayerAttributor();
+  attributor.attribute([pose(0.53, BIG_SPAN)], 1); // establishes player 1 on the left
+  attributor.reset();
+
+  const rightSideInDeadzone = pose(0.48, BIG_SPAN); // raw 0.48 -> mirrored 0.52 -> right side, no history after reset
+  assert.deepEqual(attributor.attribute([rightSideInDeadzone], 1), [null, rightSideInDeadzone]);
 });
