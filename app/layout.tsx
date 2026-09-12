@@ -18,6 +18,9 @@ export const metadata: Metadata = {
   title: "Roomful — party games for a room full of people",
   description:
     "A growing library of party and icebreaker games for live events. Host on a laptop, project it, and let the room play — some games right on the big screen, some on everyone's phones.",
+  verification: {
+    google: "vo2FLVxPMKTP5n2XzLTz3DhACjwSEjehCN7TLvOP2Yw",
+  },
 };
 
 export const viewport: Viewport = {
