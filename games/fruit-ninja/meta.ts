@@ -3,8 +3,7 @@ import type { GameMeta } from "@/lib/types";
 export const fruitNinjaMeta: GameMeta = {
   id: "fruit-ninja",
   name: "Fruit Ninja",
-  description:
-    "Two players, one camera: slice the flying fruit with your hands and dodge the bombs — one bomb ends it instantly. Four hands, three shared lives, 45 seconds.",
+  description: "Fruit Ninja, but your hands are the blades.",
   mode: "single-device",
   minPlayers: 2,
   maxPlayers: 2,

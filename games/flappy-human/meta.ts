@@ -3,7 +3,7 @@ import type { GameMeta } from "@/lib/types";
 export const flappyHumanMeta: GameMeta = {
   id: "flappy-human",
   name: "Flappy Human",
-  description: "Flap your real arms to keep the bird airborne. Starts gentle, gets brutal fast.",
+  description: "Flappy Bird, but you're the wings.",
   mode: "single-device",
   minPlayers: 1,
   maxPlayers: 1,
