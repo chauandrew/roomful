@@ -3,8 +3,7 @@ import type { GameMeta } from "@/lib/types";
 export const flossRushMeta: GameMeta = {
   id: "floss-rush",
   name: "Floss Rush",
-  description:
-    "Step up to the camera and floss as fast as you can. 15 seconds, the room watches the skeleton fly.",
+  description: "How fast can you floss?",
   mode: "single-device",
   minPlayers: 1,
   maxPlayers: 1,

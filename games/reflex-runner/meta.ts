@@ -3,7 +3,7 @@ import type { GameMeta } from "@/lib/types";
 export const reflexRunnerMeta: GameMeta = {
   id: "reflex-runner",
   name: "Reflex Runner",
-  description: "Lean, jump, and duck with your real body to dodge an endless obstacle course.",
+  description: "Motion Tracking Temple Run. Lean, jump, duck, don't trip.",
   mode: "single-device",
   minPlayers: 1,
   maxPlayers: 1,
