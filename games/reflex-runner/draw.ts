@@ -446,9 +446,7 @@ function drawRunner(ctx: CanvasRenderingContext2D, state: GameState, scaleX: num
  * helpful. Equal thirds is an approximation of the real (narrower)
  * threshold, but communicates "3 lanes" far more intuitively at a glance.
  */
-export function laneGuideXPositions(): [number, number] {
-  return [1 / 3, 2 / 3];
-}
+const LANE_GUIDE_X = [1 / 3, 2 / 3];
 
 /**
  * Draws the two lane-boundary guide lines on the camera PIP, mirrored the
@@ -457,7 +455,6 @@ export function laneGuideXPositions(): [number, number] {
  * Semi-transparent so the player's video feed stays visible under the lines.
  */
 export function drawLaneGuides(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
-  const [xLeft, xRight] = laneGuideXPositions();
   const scaleX = canvas.width / 320; // same PIP-canvas scale reference drawSkeleton uses (lib/tracking/drawPose.ts)
 
   ctx.save();
@@ -469,7 +466,7 @@ export function drawLaneGuides(ctx: CanvasRenderingContext2D, canvas: HTMLCanvas
   ctx.lineWidth = Math.max(2, scaleX);
   ctx.shadowColor = LANE_LINE;
   ctx.shadowBlur = GLOW_BLUR_NEAR * scaleX;
-  for (const x of [xLeft, xRight]) {
+  for (const x of LANE_GUIDE_X) {
     ctx.beginPath();
     ctx.moveTo(x * canvas.width, 0);
     ctx.lineTo(x * canvas.width, canvas.height);

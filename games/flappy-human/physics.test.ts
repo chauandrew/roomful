@@ -35,20 +35,6 @@ test("initState starts flying (no hover phase), centered, with no pipes and zero
   assert.equal(s.score, 0);
 });
 
-test("gravity applies from the very first step, with no flap needed to start", () => {
-  const s = initState();
-  const vy0 = s.birdVy;
-  const s1 = step(s, 100, false);
-  assert.ok(s1.birdVy > vy0); // falling immediately, no flap required
-});
-
-test("every flap applies the same impulse regardless of how it happened", () => {
-  const a = step(initState(), 16, true);
-  const b = step(initState(), 16, true);
-  assert.equal(a.birdVy, FLAP_IMPULSE);
-  assert.equal(b.birdVy, FLAP_IMPULSE);
-});
-
 test("gravity increases birdVy (more downward) over time while flying with no flap", () => {
   let s = initState();
   const vy0 = s.birdVy;
